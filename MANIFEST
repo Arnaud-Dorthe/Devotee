@@ -1,5 +1,8 @@
 		arch-tag: 8210d8bd-e650-449e-9640-5be40e8037ad
 COPYING
+LICENSE
+MANIFEST
+Makefile.PL
 README
 dvt-ack
 dvt-ballot
