@@ -259,8 +259,6 @@ this script does not do any sophisticated option parsing or checking.
 
 Redo the copy even if the destination file already exists.
 
-=back
-
 =cut
 
 sub main {

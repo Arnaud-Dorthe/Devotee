@@ -330,6 +330,8 @@ Specify the file name for the list of people who have voted
 
 =item B<--results> FILE
 
+=over 2
+
 Specify the file name where the resutls should be put
 
 =back
