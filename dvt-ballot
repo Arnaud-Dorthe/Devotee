@@ -1,16 +1,31 @@
 #!/usr/bin/perl -w
 #                              -*- Mode: Perl -*-
-# debvote-ballot.pl ---
+# dvt-ballot.pl ---
 # Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
 # Created On       : Wed Mar 27 12:11:17 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Oct 20 23:15:20 2003
+# Last Modified On : Wed Nov 12 13:10:51 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 18
+# Update Count     : 22
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
+# arch-tag: 7982a5ee-4439-4708-a006-88611bcd6e64
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
 
@@ -27,7 +42,7 @@ use MIME::Decoder::Binary;
 
 =head1 NAME
 
-debvote-mime - From the work dir, decode and save the bidy of the message
+dvt-ballot - retrieve a list of current votes, or the ballot for a specific one.
 
 =cut
 
@@ -47,15 +62,27 @@ my $force       = 0;
 
 =head1 SYNOPSIS
 
-This routine is designed to return the list of ballots, or one
-particular ballot tothe person sending the email
+dvt-ballot -c /path/to/ballots/config
 
 =cut
 
 =head1 DESCRIPTION
 
+This routine is designed to return the list of ballots, or one
+particular ballot tothe person sending the email
+
 Unlike previous incoranations, this list does not check signatures on
-the meil, indeed, it only looks at the subject, if present.
+the mail, indeed, it only looks at the subject, if present.
+
+=cut
+
+=head2 Internal Implementation
+
+Unlike the other components of devotee, this script has its own simple
+configuration file (as opposed to the vote specific configuration
+other scripts look at). The configuration file is really a perl
+snippet, which should assign values into the hash %main::Config. The
+only keys that are relevant in that hash are 'Ballot Dir' and 'Tmp Dir'. 
 
 =cut
 
@@ -192,11 +219,11 @@ sub init {
   if (defined $params{'Config File'} && -r $params{'Config File'} ) {
     $config_file = $params{'Config File'};
   }
-  elsif (-r "$dotdir/.debvote") {
-    $config_file = "$dotdir/.debvote";
+  elsif (-r "$dotdir/.devotee") {
+    $config_file = "$dotdir/.devotee";
   }
-  elsif (-r '/etc/debvote.conf') {
-    $config_file = '/etc/debvote.conf';
+  elsif (-r '/etc/devotee.conf') {
+    $config_file = '/etc/devotee.conf';
   }
 
 

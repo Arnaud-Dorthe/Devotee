@@ -5,12 +5,28 @@
 # Created On       : Sat Mar 23 22:29:26 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Oct 21 01:47:10 2003
+# Last Modified On : Wed Nov 12 13:04:04 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 30
+# Update Count     : 31
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
+#
+# arch-tag: 1a2ed1d7-1555-4d25-8554-0e7bacbf59ba
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
 
@@ -29,16 +45,18 @@ dvt-cp - Safely copy mails from the spool file to a working dir
 
 =head1 SYNOPSIS
 
-This routine is designed to copy mail safely from the spool directory
-to a working directory. It nees to do so safely, and not copy partial
-messages being written to by the spooling script. This is the second
-phase of Devotee.
+dvt-cp -c /path/to/config 
 
 =cut
 
 =head1 DESCRIPTION
 
-The emphasis here is safety, and interaction with the other debvote
+This routine is designed to copy mail safely from the spool directory
+to a working directory. It nees to do so safely, and not copy partial
+messages being written to by the spooling script. This is the second
+phase of Devotee.
+
+The emphasis here is safety, and interaction with the other Devotee
 scripts.  The spooling scripts are asynchronous, and any script
 working in the spooling directory needs to not tread over the spooling
 script, or to try and process a file not fully written by the spooling
@@ -51,6 +69,9 @@ the copy.
 =cut
 
 =head2 Internal Implementation
+
+This script pays attention to the configuration parameters Spool_Dir,
+Work_Dir, Lock_Suffix, Msg_Suffix, Msg_Preffix, and Force.
 
 =head3 copy_messages
 
@@ -69,14 +90,11 @@ sub copy_messages {
   my %Config = %{ $confref };
   my $dvt = $params{'Configuration'};
 
-  my $topdir      = $Config{'Top_Dir'};
   my $spooldir    = $Config{'Spool_Dir'};
   my $workdir     = $Config{'Work_Dir'};
-  my $logdir      = $Config{'Log_Dir'};
   my $lock_suffix = $Config{'Lock_Suffix'};
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
-  my $common_lock = $Config{'Common_Lock'};
   my $force       = $Config{'Force'};
 
   opendir(SPOOL, $spooldir) || die "can't opendir spooldir: $!";

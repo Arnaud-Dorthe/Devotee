@@ -5,13 +5,28 @@
 # Created On       : Fri Mar 29 14:28:14 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Oct 31 12:24:43 2003
+# Last Modified On : Wed Nov 12 01:22:06 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 28
+# Update Count     : 30
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
 # 
+#  arch-tag: 9d33a353-c460-4f4f-88a4-24c4aa2cd1c8
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 # 
 
 use strict;
@@ -23,18 +38,20 @@ use Getopt::Long;
 
 =head1 NAME
 
-debvote-parse - From the work dir, parse the ballot and create a single line synopsis
+dvt-parse - From the work dir, parse the ballot and create a single line synopsis
 
 =cut
 
 =head1 SYNOPSIS
 
-This routine is parses the body of the message (created by dvt-mime),
-and creates output that the tally script can handle.
+dvt-parse -c /path/to/config 
 
 =cut
 
 =head1 DESCRIPTION
+
+This routine is parses the body of the message (created by dvt-mime),
+and creates output that the tally script can handle.
 
 This routine parses the ballot, and writes out a compact, single line
 representation of the choices. It also flags ballots that it can't
@@ -49,6 +66,10 @@ re-parses previously parsed messages.
 
 =head2 Internal Implementation
 
+This utility pays attention to the configuration options Work_Dir,
+Body_Dir, Tally_Dir, Nack_Dir, Msg_Suffix, Msg_Preffix, and Force, as
+well as the Option names themselves.
+
 =cut
 
 sub parse_messages {
@@ -58,21 +79,13 @@ sub parse_messages {
   my $dvt = $params{'Configuration'};
   my %Config = %{ $confref };
 
-  my $topdir      = $Config{'Top_Dir'};
   my $workdir     = $Config{'Work_Dir'};
   my $bodydir     = $Config{'Body_Dir'};
-  my $logdir      = $Config{'Log_Dir'};
   my $tallydir    = $Config{'Tally_Dir'};
   my $nackdir     = $Config{'Nack_Dir'};
 
-  my $lock_suffix = $Config{'Lock_Suffix'};
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
-  my $common_lock = $Config{'Common_Lock'};
-  my $body_suffix = $Config{'Body_Suffix'};
-
-  my $sig_suffix  = $Config{'Sig_Suffix'};
-
   my $force       = $Config{'Force'};
 
   my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;

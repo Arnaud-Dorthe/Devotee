@@ -1,16 +1,32 @@
 #!/usr/bin/perl -w
 #                              -*- Mode: Perl -*-
-# debvote-gpg.pl ---
+# dvt-gpg ---
 # Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Oct 21 01:53:03 2003
+# Last Modified On : Wed Nov 12 03:02:31 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 85
+# Update Count     : 87
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
+#
+# arch-tag: 12cda853-b4a2-4a23-bac9-abd3033c752f
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
 
@@ -27,12 +43,15 @@ use GnuPG::Interface;
 use DB_File;
 
 
+=head1 NAME
+
+dvt-gpg - verify digital signatures on the ballot
+
+=cut
+
 =head1 SYNOPSIS
 
-This routine is designed to verify a gpg signature, given a file, and
-optionally a detached signature file. It also maintains a database of
-sig ids to prevent a replay attack. This is the fourth step of ballot
-processing.
+dvt-gpg -c /path/to/config 
 
 =cut
 
@@ -40,7 +59,12 @@ processing.
 
 =head1 DESCRIPTION
 
-This is the where we take the files created by C<debvote-mime> and
+This routine is designed to verify a gpg signature, given a file, and
+optionally a detached signature file. It also maintains a database of
+sig ids to prevent a replay attack. This is the fourth step of ballot
+processing.
+
+This is the where we take the files created by C<dvt-mime> and
 verify the cryptographic signature against the provided keyring. For
 each file in the work directory prodiced by dvt-mime, it checks the
 signatures against the keyrings configured.  This utility handles both
@@ -60,6 +84,11 @@ cleans out the replay database, and runs gpg all over again.
 
 =head2 Internal Implementation
 
+This script pays attention to the configuration parameters Top_Dir,
+Body_Dir, Check_Dir, Nack_Dir, Sig_Dir, Msg_Suffix, Msg_Preffix,
+Force, Body_Suffix, GPG_Keyring, PGP_Keyring, SEC_Keyring,
+PUB_Keyring, Replay_DB, and Sig_Suffix.
+
 =head3 verify_messages
 
 This routine is the heart of the gpg signature checks done by the
@@ -77,19 +106,14 @@ sub verify_messages {
 
 
   my $topdir      = $Config{'Top_Dir'};
-  my $workdir     = $Config{'Work_Dir'};
   my $bodydir     = $Config{'Body_Dir'};
-  my $logdir      = $Config{'Log_Dir'};
   my $checkdir    = $Config{"Check_Dir"};
   my $nackdir     = $Config{"Nack_Dir"};
   my $sigdir      = $Config{"Sig_Dir"};
 
-  my $lock_suffix = $Config{'Lock_Suffix'};
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
-  my $common_lock = $Config{'Common_Lock'};
   my $force       = $Config{'Force'};
-  my $tmpdir      = $Config{'Temp_Dir'};
   my $body_suffix = $Config{'Body_Suffix'};
 
   my $gpgring     = $Config{'GPG_Keyring'}

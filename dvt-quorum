@@ -5,13 +5,31 @@
 # Created On       : Thu Mar 13 18:07:30 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Oct 20 23:20:14 2003
+# Last Modified On : Wed Nov 12 01:16:04 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 112
+# Update Count     : 114
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
+#  arch-tag: e6b204d0-1508-4f1a-b63e-8b311cc86428
 # 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+
+
 # 
 #gpg --fast-list-mode --no-options --no-default-keyring \
 #    --keyring ./debian-keyring.pgp --keyring ./debian-keyring.gpg \
@@ -72,7 +90,10 @@ in LDAP, taking into account some developers have multiple keys.
 
 =head3 Configuration Options
 
-
+This routine pays attention to the configuration options Top_Dir,
+Ldap_Host, Ldap_Base, Ldap_Filter, GPG_Keyring, PGP_Keyring,
+SEC_Keyring, PUB_Keyring, Quorum_File, Quorum_Error, and
+Quorum_Details.
 
 =cut
 
