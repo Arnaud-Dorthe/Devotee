@@ -1,0 +1,174 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-parse --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 14:28:14 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri May 30 23:09:52 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 26
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+
+=head1 NAME
+
+debvote-mime - From the work dir, decode and save the bidy of the message
+
+=cut
+
+=head1 SYNOPSIS
+
+This routine is designed to handle various forms of MIME
+encampulation, including PGP?MIME, and create a decoded body text in a
+format that can be easily checked for cryptograhic signatures.
+
+=cut
+
+=head1 DESCRIPTION
+
+The idea here is to be forgiving of MIME errors and be able to present
+as many signed votes toi the signature verifier as possible.
+
+Additionally, this script attempts to be idepotent. It is also
+incremental, unless a force option is given. in which case it
+re-decodes previously decoded messages.
+
+=cut
+
+=head2 Internal Implementation
+
+=cut
+
+sub parse_messages {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $workdir     = $Config{'Work_Dir'};
+  my $bodydir     = $Config{'Body_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+  my $nackdir     = $Config{'Nack_Dir'};
+
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $body_suffix = $Config{'Body_Suffix'};
+
+  my $sig_suffix  = $Config{'Sig_Suffix'};
+
+  my $force       = $Config{'Force'};
+
+  my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
+  my $maxchoices  = $#valid_options + 1;
+
+  opendir(BODY, $bodydir) || die "can't opendir $workdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                        -f  "$bodydir/$_" }   readdir(BODY);
+  closedir(BODY);
+  foreach my $msg (@messages ) {
+    next if !$force && (-e "$tallydir/$msg" || -e "$nackdir/$msg");
+    my $ret = open (MESSAGE, "$bodydir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Could not open extractred message:$!");
+      next;
+    }
+    my %rank = ();
+    my $valid = 0;
+    my $text;
+
+    while (<MESSAGE>) {
+      chomp;
+      s/#.*$//o;
+      next if /^\s*$/o;
+      next unless /\[\s*(\d+)\s*\]\s*Choice\s+(\d+):\s*(.*)$/;
+
+      my $rank = $1;
+      my $candidate = $2;
+
+      if ($rank < 1 || $rank > $maxchoices) {
+	$text .= "\n$_\n";
+	$text .= "Rank has to be at least 1 [$rank]]\n" if $rank < 1;
+	$text .= "Rank has to be less than the number of candidate\n"
+	  if $rank > $maxchoices;
+	$text .= "The number of candidates =  $maxchoices. \n"
+	  if $rank > $maxchoices;
+	$text .= "Your choice [$rank]\n"   if $rank > $maxchoices;
+	$valid = -10 * $maxchoices;
+	next;
+      }
+      if ($candidate < 1 || $candidate > $maxchoices) {
+	$text .= "\n$_\n";
+	$text .= "Malformed ballot line: No such choice [$candidate]\n";
+	$valid = -10 * $maxchoices;
+	next;
+      }
+      $valid++;
+      $rank{ $candidate } = $rank;
+    }
+    close MESSAGE;
+    if ($valid > 0) {
+      my $tally = "V: ";
+      for my $candidate (1 .. $maxchoices) {
+	#$tally .= sprintf("%02d", $rank{ $candidate }) if defined $rank{ $candidate };
+	$tally .= sprintf("%d", $rank{ $candidate }) if defined $rank{ $candidate };
+	$tally .= '-'                            unless defined $rank{ $candidate };
+      }
+      $tally .= "\n";
+      $ret = open (TALLY, ">$tallydir/$msg");
+      if (!$ret) {
+	$dvt->log_message($msg, "Could not open $tallydir/$msg:$!");
+      }
+      chmod 0660, "$tallydir/$msg";
+      print TALLY $tally;
+      close TALLY;
+    }
+    else {
+      $dvt->log_message($msg, "Invalid ballot.\n");
+      $dvt->log_message($msg, $text) if $text;
+      $ret = open (NACK, ">>$nackdir/$msg");
+      if (!$ret) {
+	$dvt->log_message($msg, "Could not open $nackdir/$msg:$!");
+      }
+      chmod 0660, "$nackdir/$msg";
+      print NACK "There was an error parsing your ballot.\n";
+      print NACK "-=" x 35, "\n";
+      print NACK $text if $text;
+      print NACK "\nNo valid choices detected\n" unless $text;
+      print NACK "-=" x 35, "\n\n";
+      print NACK "Please correct the errors and revote.\n";
+      close NACK;
+    }
+  }
+}
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &parse_messages('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;

@@ -1,0 +1,142 @@
+#!/usr/bin/perl
+#                              -*- Mode: Perl -*-
+# dvt-cp ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Sat Mar 23 22:29:26 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sun Nov 10 00:16:42 2002
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 28
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+#
+#
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+
+=head1 NAME
+
+dvt-cp - Safely copy mails from the spool file to a working dir
+
+=cut
+
+=head1 SYNOPSIS
+
+This routine is designed to copy mail safely from the spool directory
+to a working directory. It nees to do so safely, and not copy partial
+messages being written to by the spooling script.
+
+=cut
+
+=head1 DESCRIPTION
+
+The emphasis here is safety, and interaction with the other debvote
+scripts.  The spooling scripts are asynchronous, and any script
+working in the spooling directory needs to not tread over the spooling
+script, or to try and process a file not fully written by the spooling
+script.
+
+Additionally, this script attempts to be idepotent. It is also
+incremental, unless a force option is given. in which case it redoes
+the copy.
+
+=cut
+
+=head2 Internal Implementation
+
+=head3 copy_messages
+
+This routine is where the grunt work occurs. After obtaining a lock
+on the file in the sppol directory, we copy th efiles over to the work
+directory, and wrte diagnostincs for any failure.
+
+=cut
+
+
+sub copy_messages {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my %Config = %{ $confref };
+  my $dvt = $params{'Configuration'};
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $spooldir    = $Config{'Spool_Dir'};
+  my $workdir     = $Config{'Work_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $force       = $Config{'Force'};
+
+  opendir(SPOOL, $spooldir) || die "can't opendir spooldir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                        -f  "$spooldir/$_" }   readdir(SPOOL);
+  closedir(SPOOL);
+
+  my $msg         ;
+  my $exit_value  ;
+  my $signal_num  ;
+  my $dumped_core ;
+
+  foreach $msg (sort @messages) {
+    next if !$force && -e "$workdir/$msg";
+    # OK. Now we have to copy tihs message
+    my $lockfile = $msg;
+    $lockfile =~ s/$msg_suffix$/$lock_suffix/;
+    open(LOCK, ">$spooldir/$lockfile") ||
+      die "Could not open $spooldir/$lockfile:$!";
+    flock(LOCK, LOCK_EX);
+    my $ret =  system '/bin/cp', '-f', "$spooldir/$msg", "$workdir/$msg";
+    flock(LOCK, LOCK_UN);
+    # unlink "$spooldir/$lockfile";
+
+    if ($ret) {
+      warn  "cp returned $exit_value trying to copy $msg";
+      $dvt->log_message($msg, "cp returned $exit_value trying to copy $msg");
+
+      $exit_value  = $? >> 8;
+      warn "cp returned $exit_value trying to copy $msg";
+      $dvt->log_message($msg, "cp returned $exit_value trying to copy $msg");
+
+      $signal_num  = $? & 127;
+      if ($signal_num) {
+	warn "cp recieved signal $signal_num\n";
+	$dvt->log_message($msg, "cp recieved signal $signal_num\n");
+      }
+
+      $dumped_core = $? & 128;
+      if ($dumped_core) {
+	warn "cp dumped core\n";
+	$dvt->log_message($msg, "cp dumped core\n");
+      }
+
+    }
+  }
+}
+
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &copy_messages('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;

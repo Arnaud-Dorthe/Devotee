@@ -1,0 +1,275 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# debvote-gpg.pl ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Wed Mar 27 19:44:05 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sat May 17 23:32:56 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 63
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+#
+#
+
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+
+use IO::Handle;
+use GnuPG::Interface;
+use DB_File;
+
+
+=head1 SYNOPSIS
+
+This routine is designed to verify a gpg signature, given a file, and
+optionally a detached signature file. It also maintains a database of
+sig ids to prevent a replay attack.
+
+=cut
+
+
+
+=head1 DESCRIPTION
+
+This is the where we take the files created by C<debvote-mime> and
+verify the cryptographic signature against the provided keyring.
+
+Additionally, this script attempts to be idepotent. It is also
+incremental, unless a force option is given. in which case it
+cleans out the replay database, and runs gpg all over again.
+
+=cut
+
+
+=head2 Internal Implementation
+
+=head3 verify_messages
+
+This routine is the heart of the gpg signature checks done by the
+voting machinery.
+
+=cut
+
+
+sub verify_messages {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $workdir     = $Config{'Work_Dir'};
+  my $bodydir     = $Config{'Body_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $checkdir    = $Config{"Check_Dir"};
+  my $nackdir     = $Config{"Nack_Dir"};
+  my $sigdir      = $Config{"Sig_Dir"};
+
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $force       = $Config{'Force'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $body_suffix = $Config{'Body_Suffix'};
+
+  my $gpgring     = $Config{'GPG_Keyring'}
+    if defined $Config{'GPG_Keyring'};
+  my $pgpring     = $Config{'PGP_Keyring'}
+    if defined $Config{'PGP_Keyring'};
+  my $secring     = $Config{'SEC_Keyring'}
+    if defined $Config{'SEC_Keyring'};
+  my $pubring     = $Config{'PUB_Keyring'}
+    if defined $Config{'PUB_Keyring'};
+
+  my $replaydb    = $Config{"Replay_DB"};
+  my $sig_suffix  = $Config{"Sig_Suffix"};
+
+
+
+  opendir(BODY, $bodydir) || die "can't opendir $bodydir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${body_suffix}$/ }  readdir(BODY);
+  closedir(BODY);
+  my $msg         ;
+
+  if ($force && -e $replaydb) {
+    unlink $replaydb;
+  }
+
+  my %Replay;
+  my $replay_ref = tie %Replay, 'DB_File', $replaydb, O_RDWR|O_CREAT, 0660,
+    $DB_HASH or die "Cannot open file $replaydb: $!\n" ;
+
+
+  foreach $msg (sort @messages) {
+    my $msg_base = $msg;
+    my $msg_sig = $msg;
+    $msg_base =~ s/\.$body_suffix$//o;
+    $msg_sig  =~ s/$body_suffix$/$sig_suffix/o;
+    if ($force ) {
+      unlink "$checkdir/$msg_base.$msg_suffix" if 
+	-e "$checkdir/$msg_base.$msg_suffix";
+    }
+    else {
+      next if (-e "$checkdir/$msg_base.$msg_suffix" || 
+	       -e "$nackdir/$msg_base.$msg_suffix") ;
+    }
+
+
+    my ( $input,   $output, $error, $status_fh )
+      = ( IO::Handle->new(),
+	  IO::Handle->new(),
+	  IO::Handle->new(),
+	  IO::Handle->new()
+	);
+    my $handles = GnuPG::Handles->new( stdin      => $input,
+				       stdout     => $output,
+				       stderr     => $error,
+				       status     => $status_fh,
+				     );
+
+    my $gnupg = GnuPG::Interface->new();
+    # well, we should really create the extra args array depending on
+    # what is defined.
+    $gnupg->options->hash_init( 'no_options' => 1,
+				'armor'   => 1,
+				'homedir' => $topdir,
+				'meta_interactive' => 0,
+				'rfc1991' => 1,
+				'extra_args' => [ "--no-default-keyring",
+						  "--keyring", "$gpgring",
+						  "--keyring", "$pgpring",
+						  "--always-trust"
+						]
+			      );
+    my $pid;
+
+    if (-r "$bodydir/$msg_sig") {
+      $pid = $gnupg->verify( handles => $handles,
+			     command_args => [ "--verify",
+					       "$bodydir/$msg_sig",
+					       "$bodydir/$msg",
+					     ]);
+    }
+    else {
+      $pid = $gnupg->verify( handles => $handles,
+			     command_args => [ "--verify",
+					       "$bodydir/$msg"]);
+    }
+
+    # this closes the communication channel,
+    # indicating we are done
+    close $input;
+
+    # now we read the output
+    my @output = <$output>;    # reading the output
+    my @result = <$error>;     # reading the error
+    my @status = <$status_fh>; # read the status info
+
+    # clean up...
+    close $output;
+    close $error;
+    close $status_fh;
+
+    waitpid $pid, 0; # clean up the finished GnuPG process
+    my $text;
+    $dvt->log_message($msg . "good", join('\n', @status));
+    if (grep {m/GOODSIG/} @status) {
+	my $fingerprint;
+	my $date;
+	my $timestamp;
+	my $radix;
+	my $keyid;
+	my $username;
+	for (@status) {
+	  if (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
+	    ($fingerprint, $date, $timestamp) = ($1, $2, $3);
+	  }
+	  elsif (m/^\s*\[GNUPG:\] SIG_ID\s+(\S+)\s+(\S+)\s+(\S+)/) {
+	    ($radix, $date, $timestamp) = ($1, $2, $3);
+	  }
+	  elsif (m/^\s*\[GNUPG:\] GOODSIG\s+(\S+)\s+(.+)$/) {
+	    ($keyid, $username) = ($1, $2);
+	  }
+	}
+	$text = join "\n", grep { m/^\s*gpg:/ } @result;
+	$text   .= "Key finger print: $fingerprint\n";
+	$text   .= "Signature ID: $radix\n";
+	if (defined $Replay{"$radix"}) {
+	  open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+	    die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+	  chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+	  print NACK "The signature on the message, though valid, has been\n";
+	  print NACK "seen before.  This could be a potential replay attack\n";
+	  print NACK "-=" x 35;
+	  print NACK "\n";
+	  print NACK $text;
+	  print NACK "-=" x 35;
+	  print NACK "\n\n";
+	  print NACK "\tThis ballot is being rejected, please vote again.\n\n";
+	  close NACK;
+	  $dvt->log_message($msg, $text);
+	}
+	else {
+	  $Replay{"$radix"} = $text;
+	  open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+	    die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+	  chmod 0660, "$checkdir/$msg_base.$msg_suffix";
+	  print GOOD $fingerprint, "\n";
+	  close GOOD;
+	  open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+	    die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+	  chmod 0660, "$sigdir/$msg_base.$msg_suffix";
+	  print SIG $keyid, "\n";
+	  close SIG;
+	}
+      }
+    else {
+      $text = "There was a problem verifying the signature on the ballot.\n";
+      $text   .=  "-=" x 35;
+      $text   .= "\n";
+      $text   .= join "", grep { m/^\s*gpg:/ } @result;
+      $text   .= "\n";
+      $text   .= join "", @status;
+      $text   .=  "-=" x 35;
+      $text   .= "\n\n";
+
+      open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+	die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+      chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+      print NACK $text;
+      print NACK "\tThis ballot is being rejected.\n\n";
+      close NACK;
+      $dvt->log_message($msg, $text);
+    }
+  }
+}
+
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &verify_messages('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+__END__

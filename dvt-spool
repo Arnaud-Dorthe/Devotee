@@ -1,0 +1,252 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# debvote-spool.pl ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Thu Mar  7 14:17:20 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Thu Apr 17 10:49:06 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 27
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+#
+#
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+
+=head1 NAME
+
+debvote-spool - Safely spool incoming data to a spool file
+
+=cut
+
+=head1 SYNOPSIS
+
+This routine is designed to spool mail safely into individual files a
+la maildir. The directory to spool in is determined by reading the
+configuration.
+
+=cut
+
+=head1 DESCRIPTION
+
+The emphasis here is safety, and alacrity: this routine needs to be
+very light weight, in order to scale to large numbers of votes, and be
+able to safely deliver the contents to the disk even under high loads.
+Due to this extremly simple goal, there are few configurable
+parameters, and even fewer command line options.
+
+=cut
+
+
+=head2 Internal Implementation
+
+=head3 lock_seq_number
+
+This routine is used to lock the sequence number generator before
+getting a new sequence number (used to generate the file name of the
+next incoming message)
+
+=cut
+
+sub lock_seq_number {
+  my ($spooldir, $sequence_file_name, $lock_suffix) = @_;
+  open (LOCK, ">${spooldir}/${sequence_file_name}.${lock_suffix}") ||
+    die "Could not open lock file:$!";
+  flock(LOCK, LOCK_EX);
+}
+
+=head3 get_seq_number
+
+This routine is used to obtain the next sequence number to use.
+
+=cut
+
+
+sub get_seq_number {
+  my ($spooldir, $sequence_file_name) = @_;
+  my $sequence = "000000";
+  open (SEQ, "${spooldir}/${sequence_file_name}") ||
+    die "Could not open sequence file:$!";
+  while (<SEQ>) {
+    chomp;
+
+    s/#.*$//g;
+    next if m/^\s*$/;
+
+    m/^[\s]*(\S+)/go;
+    $sequence = "" . $1;
+
+    last;
+  }
+  close (SEQ);
+  return $sequence;
+}
+
+
+=head3 set_seq_number
+
+This routine is used to write out the incremented sequence number back to 
+the sequence nubmer generator, ready for the next request.
+
+=cut
+
+sub set_seq_number {
+  my %params = @_;
+  croak ("Required argument Sequence Number not present") unless
+    defined $params{'Sequence Number'};
+  my $spooldir = $params{'Spool_Dir'};
+  my $sequence_file_name = $params{'Sequence File'};
+
+  open (SEQ, ">${spooldir}/${sequence_file_name}") ||
+    die "Could not open sequence file:$!";
+  print SEQ $params{'Sequence Number'}, "\n";
+  close (SEQ);
+}
+
+=head3 unlock_seq_number
+
+This routine is used unlock the sequence nubmer generator after one is
+done manipulating it.
+
+=cut
+
+
+sub unlock_seq_number {
+  my ($spooldir, $sequence_file_name, $lock_suffix) = @_;
+  flock(LOCK, LOCK_UN);
+  close (LOCK);
+  # unlink "${spooldir}/${sequence_file_name}.${lock_suffix}";
+}
+
+=head2 Published Interface
+
+=head3 new_seq_number
+
+This routine is a convenience wrapper around the internal routines for
+the seqeunce nubmer, and is the public interface to the sequence
+nubmer generator. At some point the sequence number generator may be
+put into a separate package to provide better encapsulation, and this
+shall be the API.
+
+=cut
+
+sub new_sequence_number {
+  my ($spooldir, $sequence_file_name, $lock_suffix) = @_;
+
+  my $new_seq  = "00000";
+  my $next_seq = "00001";
+
+  lock_seq_number($spooldir, $sequence_file_name, $lock_suffix);
+
+  if (-f "${spooldir}/$sequence_file_name") {
+    $new_seq = get_seq_number($spooldir, $sequence_file_name);
+    $next_seq = ++$new_seq;
+  }
+  set_seq_number('Sequence Number' => $next_seq,
+		 'Spool_Dir' => $spooldir,
+		 'Sequence File' => $sequence_file_name);
+  unlock_seq_number($spooldir, $sequence_file_name, $lock_suffix);
+  return $new_seq;
+}
+
+=head3 write_message
+
+This routine takes a required parameter, 'Sequence Number', and writes
+out the message read from standard input to the designated message
+file, taking care of locking.
+
+=cut
+
+
+sub write_message {
+  my %params = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  die "Required parameter 'Sequence Number' missing" unless 
+    defined $params{'Sequence Number'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $spooldir    = $Config{'Spool_Dir'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $lock_suffix = $Config{'Lock_Suffix'};
+
+  my $msg_name = $spooldir . '/' . $msg_preffix . $params{'Sequence Number'}
+    . '.' .   $msg_suffix;
+  my $lockfile = $spooldir . '/' . $msg_preffix . $params{'Sequence Number'}
+    . '.' .   $lock_suffix;
+
+  open (MSG_LOCK, ">$lockfile") ||  die "Could not lock message file:$!";
+  flock(MSG_LOCK, LOCK_EX);
+  open (MSG, ">$msg_name") || die "Could not open message for writing:$!";
+
+  while (<>) {
+    print MSG $_;
+  }
+  close (MSG);
+  chmod 0440, $msg_name;
+  flock(MSG_LOCK, LOCK_UN);
+  close(MSG_LOCK);
+  # unlink "$lockfile";
+}
+
+
+use Devotee;
+
+sub main {
+  my $sequence_number;
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  my $confref = $dvt->get_config_ref();
+  my %Config = %{ $confref };
+
+  $sequence_number = &new_sequence_number($Config{'Spool_Dir'}, 'Seq_Num',
+					  $Config{'Lock_Suffix'});
+  &write_message('Sequence Number' => "$sequence_number",
+		 'Configuration' => $dvt);
+}
+
+&main;
+
+exit 0;
+
+=head1 DIAGNOSTICS
+
+=over 4
+
+
+=back
+
+=head1 BUGS
+
+There are no known bugs so far.
+
+=head1 CAVEATS
+
+This implementation leaves lots of empty lock files lying around. If
+we were to lock a master lock instead, it would reduce the lock files
+to a single file, at the expense of serializing incoming mail.
+
+Additionally, there is no signal handling in this version, since the
+verion of Perl in unstable at the time of writing has random segfaults
+if signal handlers are used.
+
+=head1 SEE ALSO
+
+L<Fcntl> (3pm)
+
+=head1 AUTHOR
+
+=head1 COPYRIGHT AND LICENSE
+
+=cut

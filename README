@@ -1,0 +1,117 @@
+Hi folks,
+
+	In order to conduct the upcoming DPL vote, I have been looking
+ at the voting machinery used by Debian. There are a number of things
+ that concern me about this.
+
+	In the current method, an incoming vote is fed to a script
+ that, on the fly, checks the signature on the message, queries the
+ LDAP for canonical information, generates a response, extracts the
+ vote information, and writes it out to a plain text database. 
+
+	Until the last vote, there was no locking, so two simultaneous
+ votes could have fried all the data.  Raul put in nominal locking to
+ serialize access, but even now, a glitch while you are trying to
+ write out the database with appended information from the new
+ message, all data is lost again. There does not seem to be an easy
+ way to replay any of this, even of the original messages were kept.
+
+	Also, the same lib generates the vote result. After last years
+ vote, raul expressed some of the same concerns I am mentioning here.
+
+	This is way too daring for me.
+
+	I have, then decided to overhaul the voting machinery. The
+ emphasis here is data integrity. Votes should *NEVER EVER* be lost by
+ the system. The mechanism should be modular, and one should be able
+ to test, and refactor, each module independently. The process should
+ be reproducible, and idempotent, so that one has some assurance of
+ the integrity of the process.
+
+	Intermediate results should be saved (adds to replayability),
+ and should be examinable by common tools (I am thinking of
+ implementing thte first pass in a manner that the intermediate steps
+ can be inspected using ls, cat, and vi).
+
+	I have also decided to go back to the UNIX philosophy of
+ having independent tools that do one thing well. (kinda goes along
+ with modularity, independence, etc).
+
+	I have broken down the voting process into 7 steps, each of
+ which shall be implemented by independent pieces of code. I have 1
+ and 1a mostly done, I just need to test them. I think I have ample
+ time to implement all this ;-)
+
+======================================================================
+ Stage 1: spool vote mail. 
+
+     This stage is responsible for storing each incoming mail into a
+     separate file. A script run from .forward (as has traditionally
+     been the case) could spool the file into a spool directory
+     (flocking the sequence file as needed). The resulting files shall
+     be marked read only. (The file names should be chosen so that
+     they sort correctly)
+
+      1a: Periodically, a script shall be run from cron that copies
+          files from the spool directory to the working dir. This
+          script needs to carefully lock files and cooperate with the
+          spooler script not to tread on its toes. If the destination
+          file already exists, one need not recopy unless the force
+          option is on. This script is thus idempotent. 
+----------------------------------------------------------------------
+ Stage 2: Validate signature
+      
+	This is also run from cron, after the copy script from 1a is
+	done. For each new file in the work dir, it shall check the
+	signature against keyrings specified on the command line. It
+	shall mark failure/success (initial implementation: It works
+	touching a file in a gpg subdir with the same name as the file
+	in the working dir. If the file already exists in the gpg
+	subdir, one need not check the sig unless the force option is
+	on) This script is thus idempotent.
+
+----------------------------------------------------------------------
+ Stage 3: Query LDAP
+
+	Also run from cron.  For each file in the gpg dir which
+	succeeded, query ldap using information from the corresponding
+	file in the work subdir. Store results in a file in the ldap
+	subdir (if the file already exists in ldap subdir, no query
+	need be made, unless the force option is set). Mark the
+	results as valid or invalid. This script is idempotent.
+----------------------------------------------------------------------
+ Stage 4: generate response.
+
+	Also run from cron.  For each file in the ldap subdir, if the
+	data was valid, parse the vote, and cxreate an ack (from
+	templates). If the ldap data was invalid, create a error
+	message. Store either in the ack subdir. (If the ack subdir
+	already has a file, we can skip that unless the force option
+	is given). This script is thus idempotent.
+----------------------------------------------------------------------
+ Stage 5: Send acks
+
+	Also run from cron.  For each file in the ack subdir, send
+	mail, and touch a file in the sent subdir. If the file already
+	existed, do not send mail unless the force option is on. This
+	script is thus idempotent. 
+----------------------------------------------------------------------
+ Stage 6: Create input file for vote method
+
+	Run manually at the end of the vote (could also be run by
+	cron, I guess). For each valid ldap info file, read the data
+	present in the working dir, and generate the single line
+	needed by the vote method. Store by ldap uid. At the end,
+	write out the file -- so the last vote cast by any person is
+	the one counted. The raw file may or may not have uids, nad
+	should be published (without uids for secrecy, but look at 6a
+	below). 
+	
+        6a: Optional: Do the same as above, except that each uid is
+            replaced by a random string. send email containing the
+            file to each person voting, and saying your vote is
+            indicated by the line containing random string "alwyhe" --
+            ensuring secrecy, but also ensuring accountability.
+----------------------------------------------------------------------
+Stage 7: Run the Condorcet method program.
+----------------------------------------------------------------------

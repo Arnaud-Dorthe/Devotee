@@ -1,0 +1,185 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# debvote-mime.pl ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Mon Mar 25 12:26:05 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sun Nov 10 00:45:49 2002
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 28
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+#
+#
+
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+=head1 NAME
+
+debvote-mime - From the work dir, decode and save the bidy of the message
+
+=cut
+
+
+=head1 SYNOPSIS
+
+This routine is designed to handle various forms of MIME
+encampulation, including PGP?MIME, and create a decoded body text in a
+format that can be easily checked for cryptograhic signatures.
+
+=cut
+
+=head1 DESCRIPTION
+
+The idea here is to be forgiving of MIME errors and be able to present
+as many signed votes toi the signature verifier as possible.
+
+Additionally, this script attempts to be idepotent. It is also
+incremental, unless a force option is given. in which case it
+re-decodes previously decoded messages.
+
+=cut
+
+
+=head2 Internal Implementation
+
+=cut
+
+=head3 demime_messages
+
+This routine is where the grunt work occurs. After obtaining a lock
+on the file in the sppol directory, we copy th efiles over to the work
+directory, and wrte diagnostincs for any failure.
+
+=cut
+
+sub demime_messages {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my %Config = %{ $confref };
+  my $dvt = $params{'Configuration'};
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $workdir     = $Config{'Work_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $force       = $Config{'Force'};
+  my $bodydir     = $Config{'Body_Dir'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $body_suffix = $Config{'Body_Suffix'};
+  my $sig_suffix  = $Config{"Sig_Suffix"};
+
+  # Remove the decoder that will change the input
+  MIME::Decoder->uninstall('quoted-printable');
+  MIME::Decoder->uninstall('base64');
+
+  # To disable some annoying warnings
+  MIME::Decoder::Binary->install('quoted-printable');
+  MIME::Decoder::Binary->install('base64');
+
+  opendir(WORK, $workdir) || die "can't opendir $workdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                        -f  "$workdir/$_" }   readdir(WORK);
+  closedir(WORK);
+
+  my $msg         ;
+  foreach $msg (sort @messages) {
+    my $msg_body = $msg;
+    my $msg_sig = $msg;
+    $msg_body =~ s/$msg_suffix$/$body_suffix/o;
+    $msg_sig  =~ s/$msg_suffix$/$sig_suffix/o;
+    next if !$force && -e "$bodydir/$msg_body";
+
+    my $parser = new MIME::Parser;
+    $parser->output_dir("$tmpdir");
+    $parser->output_to_core(0);
+
+    my $entity;
+    eval {$entity = $parser->parse_open("$workdir/$msg"); };
+    if ($@) {
+      $dvt->log_message($msg, "Could not parse message $msg");
+      next;
+    }
+
+    my $head = $entity->head;
+    # my $type = $head->get('Content-Type');
+    # my $from = $head->get('From');
+    # chomp($from);
+    # my $replyto = $head->get('Reply-To');
+    # if ($replyto) {
+    #   $from = $replyto;
+    # }
+    # my $subject = $head->get('Subject');
+
+
+    # If there's a MIM signature, try to handle it.
+    if ( ($head->mime_type =~ /multipart\/signed/i) and
+	 ( $entity->parts(1)->head->mime_type =~
+	   /application\/pgp-signature/i) ) {
+      my $ret = open(SIG, ">$bodydir/$msg_sig");
+      if (!$ret) {
+	$dvt->log_message($msg, "Could not create sig file $msg_sig");
+	next;
+      }
+      chmod 0660, "$bodydir/$msg_sig";
+      $entity->parts(1)->print_body(\*SIG);
+      close(SIG);
+
+      $ret = open(DATA, ">$bodydir/$msg_body");
+      if (!$ret) {
+	$dvt->log_message($msg, "Could not create sig file $msg_body");
+	next;
+      }
+      chmod 0660, "$bodydir/$msg_body";
+      print DATA $entity->parts(0)->as_string;
+      close(DATA);
+    }
+    else {
+      my $ret = open(DATA, ">$bodydir/$msg_body");
+      if (!$ret) {
+	$dvt->log_message($msg, "Could not create sig file $msg_body");
+	next;
+      }
+      chmod 0660, "$bodydir/$msg_body";
+      print DATA $entity->body_as_string();
+      close(DATA);
+    }
+  }
+
+}
+
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &demime_messages('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;

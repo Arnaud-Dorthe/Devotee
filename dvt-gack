@@ -1,0 +1,232 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-ack --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 22:06:48 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri May 16 11:59:51 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 68
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+use IO::Handle;
+use GnuPG::Interface;
+use DB_File;
+
+=head1 NAME
+
+debvote-mime - From the work dir, decode and save the bidy of the message
+
+=cut
+
+=head1 SYNOPSIS
+
+TBD
+
+=cut
+
+=head1 DESCRIPTION
+
+
+
+=cut
+
+=head2 Internal Implementation
+
+=cut
+
+
+sub generate_ack {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $workdir     = $Config{'Work_Dir'};
+  my $bodydir     = $Config{'Body_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+  my $ackdir      = $Config{'Ack_Dir'};
+  my $sigdir      = $Config{'Sig_Dir'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $ldapdir     = $Config{'LDAP_Dir'};
+
+
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $force       = $Config{'Force'};
+
+  my $body_suffix = $Config{'Body_Suffix'};
+  my $sig_suffix  = $Config{"Sig_Suffix"};
+
+  my $aliasdb     = $Config{'Alias_DB'};
+
+  my $gpgring     = $Config{'GPG_Keyring'}
+    if defined $Config{'GPG_Keyring'};
+  my $pgpring     = $Config{'PGP_Keyring'}
+    if defined $Config{'PGP_Keyring'};
+  my $secring     = $Config{'SEC_Keyring'}
+    if defined $Config{'SEC_Keyring'};
+  my $pubring     = $Config{'PUB_Keyring'}
+    if defined $Config{'PUB_Keyring'};
+
+  opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                        -f  "$workdir/$_" }   readdir(TALLY);
+  closedir(TALLY);
+
+  if ($force && -e $aliasdb) {
+    unlink $aliasdb;
+  }
+  my %Moniker;
+  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, 0660,
+    $DB_HASH or die "Cannot open file $aliasdb: $!\n" ;
+
+  foreach my $msg (sort @messages) {
+    my $msg_base = $msg;
+    $msg_base =~ s/\.$msg_suffix$//o;
+    next if !$force && -e "$ackdir/$msg_base.sent";
+
+    my $ret = open(VOTE, "$tallydir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error reading vote from $tallydir/$msg:$!");
+      next;
+    }
+    undef $/;
+    my $vote = <VOTE>;
+    close VOTE;
+    $/ = "\n";
+    chomp $vote;
+
+    if (-r "$ldapdir/$msg") {
+       $ret = open(LDAP, "$ldapdir/$msg");
+       if (!$ret) {
+	 $dvt->log_message($msg, "Error reading uid from $ldapdir/$msg:$!");
+	 next;
+       }
+    }
+    else {
+      $dvt->log_message($msg, "No uid found in $ldapdir/$msg.\n");
+      next;
+    }
+    my $uid;
+    while (<LDAP>) {
+      chomp;
+      if (m/^uid: (\S+)/o) { $uid = $1; };
+    }
+    close LDAP;
+
+    my $alias;
+    my $first_vote = 0;
+
+    if (defined $Moniker{ $uid }) {
+      $alias = $Moniker{ $uid };
+    }
+    else {
+      $first_vote = 1;
+      $alias = '' . (time % (24 * 21 * 60 * 60));
+      my @chars = (0 .. 9, 'a' .. 'z', 'A' .. 'Z');
+      $alias .=  join ("", map {$chars[rand $#chars]} 1..8);
+      $Moniker{ $uid } = $alias;
+    }
+
+    my $parser = new MIME::Parser;
+    $parser->output_dir("$tmpdir");
+    $parser->output_to_core(0);
+    my $entity;
+    eval {$entity = $parser->parse_open("$workdir/$msg"); };
+    if ($@) {
+      $dvt->log_message($msg, "Could not parse message $msg");
+      next;
+    }
+    my $head        = $entity->head;
+    my $from        = $head->get('From');
+    my $replyto     = $head->get('Reply-To');
+    my $date        = $head->get('Date');
+    my $origsubject = $head->get('Subject');
+    my $messageid   = $head->get('Message-ID');
+    my $now_string  = gmtime;
+
+    chomp($from)          if $from;
+    chomp($date)          if $date;
+    chomp($origsubject)   if $origsubject;
+    chomp($replyto)       if $replyto;
+    chomp($messageid)     if $messageid;
+    if ($replyto) {
+      $from = $replyto;
+    }
+    my $subject = "Acknowledgement for your vote";
+
+    my $body = '';
+    $body  = "\tThis is an acknowledgement for your vote [record $msg]\n";
+    $body .= " sent in on $date" if $date;
+    $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
+    $body .= "\n"                                  unless $origsubject;
+    $body .= " The message ID is $messageid.\n"       if $vote;
+    $body .= " Your vote has been recorded as follows\n" if $vote;
+    $body .= "-=" x 35 . "\n" if $vote;
+    $body .= "$vote \n"       if $vote;
+    $body .= "-=" x 35 . "\n" if $vote;
+    $body .= "I note that this is not your first vote.\n" unless $first_vote;
+    if (defined $Config{'Secret'} && $Config{'Secret'} ) {
+      $body .= "Your secret moniker is $alias. This is the identifier\n";
+      $body .= "that shall be used to denote your vote on the public list\n";
+      $body .= "published at the end of the election, so you can check your\n";
+      $body .= "vote without giving up secrecy, like so:\n";
+      $body .= " % echo \"$uid $alias\" | md5sum\n";
+      $body .= "and look for that checksum in the final published tally.\n";
+    }
+    $body .= "\n  The time now is $now_string\n";
+    $body .= "\n\tThanks for your vote.\n";
+
+    $ret = open(CREATED, ">$ackdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error creating $ackdir/$msg:$!");
+      next;
+    }
+    chmod 0660, "$ackdir/$msg";
+    print CREATED "$body\n";
+    close CREATED;
+    chmod 0440, "$ackdir/$msg";
+  }
+}
+
+
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &generate_ack('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;

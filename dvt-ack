@@ -1,0 +1,329 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-ack --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 22:06:48 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri May 16 12:01:16 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 68
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+
+use strict;
+use Devotee;
+
+require 5.005;
+use Carp qw(carp croak);
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+use IO::Handle;
+use GnuPG::Interface;
+use DB_File;
+
+=head1 NAME
+
+debvote-mime - From the work dir, decode and save the bidy of the message
+
+=cut
+
+=head1 SYNOPSIS
+
+This routine is designed to handle various forms of MIME
+encampulation, including PGP?MIME, and create a decoded body text in a
+format that can be easily checked for cryptograhic signatures.
+
+=cut
+
+=head1 DESCRIPTION
+
+The idea here is to be forgiving of MIME errors and be able to present
+as many signed votes toi the signature verifier as possible.
+
+Additionally, this script attempts to be idepotent. It is also
+incremental, unless a force option is given. in which case it
+re-decodes previously decoded messages.
+
+
+=head2 Internal Implementation
+
+=cut
+
+sub send_mail {
+  my %params = @_;
+
+  die "Required parameter 'Destination' missing" unless
+    defined $params{'Destination'};
+  die "Required parameter 'Subject' missing" unless
+    defined $params{'Subject'};
+  die "Required parameter 'Body' missing" unless
+    defined $params{'Body'};
+  die "Required parameter 'Message' missing" unless
+    defined $params{'Message'};
+  die "Required paramter 'SEC Ring' missing" unless $params{'SEC Ring'};
+  die "Required paramter 'PUB Ring' missing" unless $params{'PUB Ring'};
+  die "Required paramter 'GPG Ring' missing" unless $params{'GPG Ring'};
+  die "Required paramter 'PGP Ring' missing" unless $params{'PGP Ring'};
+  die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
+
+  my $sigdir 	 = $params{'Sig Dir'} if defined $params{'Sig Dir'};
+  my $tallydir 	 = $params{'Tally Dir'} if defined $params{'Tally Dir'};
+  my $topdir 	 = $params{'Top Dir'} if defined $params{'Top Dir'};
+  my $secring 	 = $params{'SEC Ring'} if defined $params{'SEC Ring'};
+  my $pubring 	 = $params{'PUB Ring'} if defined $params{'PUB Ring'};
+  my $gpgring 	 = $params{'GPG Ring'} if defined $params{'GPG Ring'};
+  my $pgpring 	 = $params{'PGP Ring'} if defined $params{'PGP Ring'};
+  my $passphrase = $params{'Pass Word'} if defined $params{'Pass Word'};
+  my $dvt        = $params{'Configuration'};
+
+
+  my $msg = $params{'Message'};
+  if (-r "$sigdir/$msg") {
+    my $ret = open(KEYID, "$sigdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error reading uid from $tallydir/$msg:$!");
+      return 0;
+    }
+  } else {
+    $dvt->log_message($msg, "No keyid found in $sigdir / $msg");
+    return 0;
+  }
+  undef $/;
+  my $keyid = <KEYID>;
+  close KEYID;
+  $/ = "\n";
+  chomp $keyid;
+
+
+  my ( $input,   $output, $error, $status_fh)
+    = ( IO::Handle->new(),
+	IO::Handle->new(),
+	IO::Handle->new(),
+	IO::Handle->new()
+      );
+  my $handles = GnuPG::Handles->new( stdin      => $input,
+				     stdout     => $output,
+				     stderr     => $error,
+				     status     => $status_fh
+				   );
+
+  my $gnupg = GnuPG::Interface->new();
+  # well, we should really create the extra args array depending on
+  # what is defined.
+  $gnupg->options->hash_init( 'no_options' => 1,
+			      'armor'   => 1,
+			      'homedir' => $topdir,
+			      'recipients' => ['0x' . $keyid ],
+			      'meta_interactive' => 0,
+						"verbose" => 1,
+						"always_trust" => 1,
+			      'extra_args' => [ 
+						"--no-default-keyring",
+						"--secret-keyring", "$secring",
+						"--keyring", "$pubring",
+						"--keyring", "$gpgring",
+						"--keyring", "$pgpring"
+					      ]
+			    );
+  # indicate our pasphrase through the convience method
+  $gnupg->passphrase( $passphrase );
+
+  my $pid = $gnupg->sign_and_encrypt( handles => $handles);
+#	my $pid = $gnupg->wrap_call (
+#		  handles => $handles,
+#			commands     => [ qw( --sign --encrypt ) ]
+#		);
+
+  # this closes the communication channel,
+  # indicating we are done
+  print $input $params{'Body'};
+  close $input;
+  
+  # now we read the output
+  my @output = <$output>;	# reading the output
+  my @errors = <$error>;	# reading the error
+  my @status = <$status_fh>;	# read the status info
+  
+  # clean up...
+  close $output;
+  close $error;
+  close $status_fh;
+
+  waitpid $pid, 0;		# clean up the finished GnuPG process
+
+  my $body = join ('', @output) if @output;
+  if (! $body) {
+    $dvt->log_message($msg, "Error encrypting message.\n@errors\n@status\n");
+    return 0;
+  }
+  my $text=<<EOH;
+From: secretary\@debian.org
+To: $params{'Destination'}
+Reply-To: secretary\@debian.org
+Bcc: secretary\@debian.org
+Subject: $params{'Subject'}
+
+Hi,
+
+$body
+
+-- 
+Debian Project secretary (secretary\@debian.org)
+
+EOH
+  ;
+  open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
+# open(MAIL, ">>Acks")                  || die "Cannot open sendmail";
+  print MAIL $text;
+  close(MAIL);
+  return $text;
+}
+
+
+sub send_ack {
+
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $workdir     = $Config{'Work_Dir'};
+  my $bodydir     = $Config{'Body_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+  my $ackdir      = $Config{'Ack_Dir'};
+  my $sigdir      = $Config{'Sig_Dir'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $ldapdir     = $Config{'LDAP_Dir'};
+
+  my $aliasdb     = $Config{'Alias_DB'};
+
+
+  my $gpgring     = $Config{'GPG_Keyring'}
+    if defined $Config{'GPG_Keyring'};
+  my $pgpring     = $Config{'PGP_Keyring'}
+    if defined $Config{'PGP_Keyring'};
+  my $secring     = $Config{'SEC_Keyring'}
+    if defined $Config{'SEC_Keyring'};
+  my $pubring     = $Config{'PUB_Keyring'}
+    if defined $Config{'PUB_Keyring'};
+
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+
+  my $force       = $Config{'Force'};
+
+  my $body_suffix = $Config{'Body_Suffix'};
+  my $sig_suffix  = $Config{"Sig_Suffix"};
+
+
+  my $passphrase = $Config{"Pass_Word"} if $Config{"Pass_Word"};
+
+
+  opendir(ACKS, $ackdir) || die "can't opendir $ackdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+			  -f  "$workdir/$_" }   readdir(ACKS);
+  closedir(ACKS);
+
+  foreach my $msg (sort @messages) {
+    my $msg_base = $msg;
+    $msg_base =~ s/\.$msg_suffix$//o;
+    next if !$force && -e "$ackdir/$msg_base.sent";
+
+    my $ret = open(TEXT, "$ackdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error reading body from $ackdir/$msg:$!");
+      next;
+    }
+    undef $/;
+    my $body = <TEXT>;
+    close TEXT;
+    $/ = "\n";
+    if (!$body || $body =~ /^\s*$/) {
+      $dvt->log_message($msg, "No body found in  $ackdir/$msg:$!");
+      next;
+    }
+
+    my $parser = new MIME::Parser;
+    $parser->output_dir("$tmpdir");
+    $parser->output_to_core(0);
+    my $entity;
+    eval {$entity = $parser->parse_open("$workdir/$msg"); };
+    if ($@) {
+      $dvt->log_message($msg, "Could not parse message $msg");
+      next;
+    }
+    my $head        = $entity->head;
+    my $from        = $head->get('From');
+    my $replyto     = $head->get('Reply-To');
+
+    chomp($from)          if $from;
+    chomp($replyto)       if $replyto;
+    if ($replyto) {
+      $from = $replyto;
+    }
+
+    my $subject = "Acknowledgement for your vote";
+
+    $ret = &send_mail('Destination'   => "$from",
+		      'Subject'       => "$subject",
+		      'Body'          => "$body",
+		      'Message'       => "$msg",
+		      'Sig Dir'       => "$sigdir",
+		      'Tally Dir'     => "$tallydir",
+		      'Top Dir'       => "$topdir",
+		      'SEC Ring'      => "$secring",
+		      'PUB Ring'      => "$pubring",
+		      'GPG Ring'      => "$gpgring",
+		      'PGP Ring'      => "$pgpring",
+		      'Pass Word'     => "$passphrase",
+		      'Configuration' => $dvt
+		     );
+    if (!$ret) {
+      $dvt->log_message($msg, "Error sending mail");
+      next;
+    }
+    my $ret1 = open(SENT, ">>$ackdir/$msg_base.sent");
+    if (!$ret1) {
+      $dvt->log_message($msg, 
+			"Error logging mesage $ackdir/$msg_base.sent:$!");
+      next;
+    }
+    chmod 0660, "$ackdir/$msg_base.sent";
+    my $now_string = gmtime;
+    print SENT "Sent ACK to $from at $now_string\n";
+    print SENT "\n\n$ret\n\n";
+    close SENT;
+  }
+
+}
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &send_ack('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;

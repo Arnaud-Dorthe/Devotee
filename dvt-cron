@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+workdir=/org/vote.debian.org/
+test -d $workdir || exit 1
+
+cd $workdir
+
+conffile=./data/leader2002/debvote
+
+./bin/dvt-cp       -c $conffile
+./bin/dvt-mime     -c $conffile
+./bin/dvt-gpg      -c $conffile
+./bin/dvt-ldap     -c $conffile
+./bin/dvt-extract  -c $conffile
+./bin/dvt-parse    -c $conffile
+./bin/dvt-gack     -c $conffile
+
+echo -n "Hit enter top proceed with nacks."
+read answer
+./bin/dvt-nack     -c $conffile
+
+echo -n "Hit enter to proceed with acks. "
+read answer
+./bin/dvt-ack     -c $conffile

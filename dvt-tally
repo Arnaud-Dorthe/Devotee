@@ -1,0 +1,192 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-tally --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Sat Mar 30 11:33:31 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri Jun 20 13:53:04 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 26
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+use Digest::MD5  qw(md5 md5_hex md5_base64);
+use DB_File;
+
+=head1 SYNOPSIS
+
+This routine is designed to query the debian ldap server to determine
+the unique uid for every debian developer. 
+
+=cut
+
+=head1 DESCRIPTION
+
+The unique uid that is determined from LDAP, using the key fingerprint
+as a filter, shall be used as primary index, allowing for developers
+with multiple keys to still be able to replace their vote. 
+
+=cut
+
+
+sub create_tally {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $checkdir    = $Config{"Check_Dir"};
+  my $ldapdir     = $Config{'LDAP_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+
+  my $aliasdb     = $Config{'Alias_DB'};
+
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $force       = $Config{'Force'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $body_suffix = $Config{'Body_Suffix'};
+  my $sig_suffix  = $Config{"Sig_Suffix"};
+
+  opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+			  -f  "$ldapdir/$_"} readdir(TALLY);
+  closedir(TALLY);
+
+  my %Moniker;
+  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, 0660,
+    $DB_HASH or die "Cannot open file $aliasdb: $!\n" ;
+
+  my %votes=();
+  my %Names=();
+
+  foreach my $msg (sort @messages) {
+    my $ret = open(VOTE, "$tallydir/$msg");
+    if (!$ret) {
+      die "Error reading vote from $tallydir/$msg:$!";
+    }
+    undef $/;
+    my $vote = <VOTE>;
+    close VOTE;
+    $/ = "\n";
+    chomp $vote;
+
+    if (-r "$ldapdir/$msg") {
+       $ret = open(LDAP, "$ldapdir/$msg");
+       if (!$ret) {
+         die "Error reading uid from $ldapdir/$msg:$!";
+       }
+    }
+    else {
+      die "Could not read uid from  $ldapdir/$msg.\n";
+    }
+    my $uid;
+    my $cn;
+    my $sn;
+    while (<LDAP>) {
+      chomp;
+      if (m/^uid: (\S+)/o) { $uid = $1; };
+      if (m/^cn: (.*)$/o)  { $cn = $1; };
+      if (m/^sn: (.*)$/o) { $sn = $1; };
+    }
+    close LDAP;
+
+    $votes{"$uid"} = $vote;
+    $Names{"$uid"} = "$cn $sn";
+  }
+
+
+  print "\n\t\t       Tally Sheet for the votes cast. \n \n";
+  print "   The format is:\n";
+
+  if ($Config{Secret}) {
+    print "       \"V: vote \t\tMD5SUM\"\n";
+    print " You may locate the MD5SUM corresponding to a debian login ID,\n";
+    print " given the associated secret token returned with the ack,\n";
+    print " by simply running md5sum. Forexample, for login ID srivasta, and\n";
+    print " the secret token 0123456789ABCDE, the following invocation works:\n";
+    print "   % echo \"srivasta 0123456789ABCDE\" | md5sum\n";
+  }
+  else {
+    print "       \"V: vote \tLogin\tName\"\n";
+  }
+  print " The vote block represents the ranking given to each of the \n";
+  print " candidates by the voter. \n";
+  print " ", "-=" x 34, "\n";
+
+  my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
+
+#   foreach my $index (1 .. ($#valid_options + 1) ) {
+#     print "   ", " |" x ($index - 2), $index > 1 ? " / " : " ",
+#       " Option $index", "--" x ($#valid_options + 2 - $index), "->: ",
+# 	$Config{"Option_$index"}, "\n";
+#   }
+#   print "   ", " |" x ($#valid_options), " /\n";
+  foreach my $index (1 .. ($#valid_options + 1) ) {
+    print "   ", "|" x ($index - 2), $index > 1 ? "/ " : " ",
+      " Option $index", "-" x ($#valid_options + 2 - $index), "->: ",
+	$Config{"Option_$index"}, "\n";
+  }
+  print "   ", "|" x ($#valid_options), "/\n";
+
+  my @count = sort keys %votes;
+  while (@count) {
+    if ($Config{Secret}) {
+      my $name = splice @count, int(rand(scalar(@count))), 1;
+      if (! defined $Moniker{ $name }) {
+	die "Could not find the moniker for $name\n";
+      }
+      my $alias = $Moniker{ $name };
+      if ($Config{Final_Tally}) {
+	print $votes{"$name"}, " \t\t", md5_hex("$name $alias\n"), "\n";
+      }
+      else {
+	print "V: ", "-" x $#valid_options,  "1", " \t\t",
+	  md5_hex("$name $alias obfuscate\n"), "\n";
+      }
+    }
+    else {
+      my $name = shift @count;
+      if ($Config{Final_Tally}) {
+          print $votes{"$name"};
+          printf "\t%15s\t%s\n", $name, $Names{"$name"};
+      }
+      else {
+	print "V: ", "-" x $#valid_options,  "1";
+	printf "\t%15s\t%s\n", $name, $Names{"$name"};
+      }
+    }
+  }
+}
+
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &create_tally('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;

@@ -1,0 +1,188 @@
+#!/usr/bin/perl
+#                              -*- Mode: Perl -*- 
+# debvote-ldap.pl --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 00:51:07 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Tue Apr 15 01:23:31 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 41
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock'; # import LOCK_* constants
+use Getopt::Long;
+
+use Net::LDAP;
+#use Net::LDAPS;  # commented out stuff useful for LDAPS
+
+use vars qw($msg $ldapdir);
+
+=head1 SYNOPSIS
+
+This routine is designed to query the debian ldap server to determine
+the unique uid for every debian developer. 
+
+=cut
+
+=head1 DESCRIPTION
+
+The unique uid that is determined from LDAP, using the key fingerprint
+as a filter, shall be used as primary index, allowing for developers
+with multiple keys to still be able to replace their vote. 
+
+=cut
+
+
+#$filter = "keyfingerprint=$ARGV[0]";
+#$onerror = sub {
+#  my ($mesg) = @_;
+#  print "Net::LDAP failure: " . $mesg->error . "\n";
+#  exit 1 if ($mesg->is_error);
+#  return $mesg;
+#}; 
+
+sub onerror {
+  my ($mesg) = @_;
+  print "Net::LDAP failure: " . $mesg->error . "\n";
+  exit 1 if ($mesg->is_error);
+  return $mesg;
+}
+
+sub ldap_callback {
+  my %params  = @_;
+  my $mesg    = $params{'Request'};
+  my $entry   = $params{'Entry'};
+  my $msg     = $params{'Message'};
+  my $ldapdir = $params{'LDAP_Dir'};
+  my $nackdir = $params{'Nack_Dir'};
+  my $dvt     = $params{'Configuration'};
+  $entry or return;
+
+  #my $output = $entry->get_value('uid');
+  my $uid = join '', $entry->get_value('uid');
+  my $cn  = join '', $entry->get_value('cn');
+  my $sn  = join '', $entry->get_value('sn');
+  die "No UID found." unless $uid;
+
+  open (LDAP, ">$ldapdir/$msg") || 
+    die "Could not open output file $ldapdir/$msg:$!";
+
+
+  chmod 0660, "$ldapdir/$msg";
+  print LDAP "uid: $uid\n";
+  print LDAP "cn: $cn\n" if $cn;
+  print LDAP "sn: $sn\n" if $sn;
+  close LDAP;
+};
+
+sub ldap_info {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $msg;
+  my $ldapdir     = $Config{"LDAP_Dir"};
+  my $nackdir     = $Config{"Nack_Dir"};
+  my $topdir      = $Config{'Top_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $checkdir    = $Config{"Check_Dir"};
+  my $ldaphost    = $Config{"Ldap_Host"};
+  my $base        = $Config{"Ldap_Base"};
+
+  my $lock_suffix = $Config{'Lock_Suffix'};
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $common_lock = $Config{'Common_Lock'};
+  my $force       = $Config{'Force'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $body_suffix = $Config{'Body_Suffix'};
+
+  my $ldap = new Net::LDAP($ldaphost, "debug" => 0,
+			   "version" => '2',
+			   "onerror" => \&onerror ) or 
+    die "Failed to create LDAP Handle for $ldaphost: $@";
+  $ldap->bind ();
+  # $ldap->bind (dn=>$somedn, password=>$somepw):
+
+  opendir(DATA, $checkdir) || die "can't open gpg output dir $checkdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ }  readdir(DATA);
+  closedir(DATA);
+
+  foreach $msg (sort @messages) {
+    next if !$force && -e "$ldapdir/$msg";
+    my $ret = open(PRINT, "$checkdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error Reading fingerprint from $checkdir/$msg:$!");
+      next;
+    }
+    undef $/;
+    my $print = <PRINT>;
+    $/="\n";
+    $print =~ m/(\S+)/;
+    my $filter = $1;
+    chomp($filter);
+    $filter = "(keyfingerprint=$filter)";
+    my @attributes = ('uid', 'cn', 'sn' );
+    eval {  $ldap->search ("base" => "$base", "filter" => "$filter",
+			   "attrs" => \@attributes,
+			   "callback" => sub {
+			     my ($mesg, $entry) = @_;
+			     &ldap_callback('Request'  	    => $mesg,
+					    'Entry'    	    => $entry,
+					    'Message'  	    => $msg,
+					    'LDAP_Dir' 	    => $ldapdir,
+					    'Nack_Dir' 	    => $nackdir,
+					    'Configuration' => $dvt)}
+			  ); };
+    if ($@) {
+      $dvt->log_message($msg, "Error getting ldap info:$@");
+    }
+  }
+  $ldap->unbind ();
+}
+
+
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-c> F<config file>, B<--config_file>=F<config file>
+
+Specify an alternate configuration file to read in for this run. Note:
+this script does not do any sophisticated option parsing or checking.
+
+=item B-f>, B<--force>
+
+Redo the copy even if the destination file already exists.
+
+=back
+
+=cut
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &ldap_info('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
