@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Oct 17 03:05:57 2003
+# Last Modified On : Fri Oct 17 12:13:48 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 65
+# Update Count     : 71
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -182,7 +182,7 @@ sub verify_messages {
 
     waitpid $pid, 0; # clean up the finished GnuPG process
     my $text;
-    $dvt->log_message($msg . "good", join('\n', @status));
+    $dvt->log_message($msg . ".good", join('', @status));
     if (grep {m/GOODSIG/} @status) {
 	my $fingerprint;
 	my $date;
@@ -190,8 +190,25 @@ sub verify_messages {
 	my $radix;
 	my $keyid;
 	my $username;
+	my $subkey;
 	for (@status) {
-	  if (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
+	  # Newer GPG versions have extended subkey and expiry data
+	  if (m/^\s*\[GNUPG:\]\s+VALIDSIG
+                 \s+(\S+)  #  <fingerprint in hex>
+                 \s+(\S+)	# <sig_creation_date>
+                 \s+(\S+)	# <sig-timestamp>
+                 \s+\S+	# <expire-timestamp>
+                 \s+\S+	# <sig-version>
+                 \s+\S+	# <reserved>
+                 \s+\S+	# <pubkey-algo>
+                 \s+\S+	# <hash-algo>
+                 \s+\S+	# <sig-class>
+                 \s+(\S+)	# <primary-key-fpr>
+                 \s*$
+                 /x) {
+	    ($subkey, $date, $timestamp, $fingerprint) = ($1, $2, $3, $4);
+	  }
+	  elsif (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
 	    ($fingerprint, $date, $timestamp) = ($1, $2, $3);
 	  }
 	  elsif (m/^\s*\[GNUPG:\] SIG_ID\s+(\S+)\s+(\S+)\s+(\S+)/) {

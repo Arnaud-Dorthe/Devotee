@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 30 11:33:31 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Jun 20 13:53:04 2003
+# Last Modified On : Fri Oct 17 14:05:07 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 26
+# Update Count     : 37
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -51,6 +51,8 @@ sub create_tally {
   my $checkdir    = $Config{"Check_Dir"};
   my $ldapdir     = $Config{'LDAP_Dir'};
   my $tallydir    = $Config{'Tally_Dir'};
+  my $tallyfile   = $Config{'Tally_File'};
+  my $dummyfile   = $Config{'Tally_Dummy'};
 
   my $aliasdb     = $Config{'Alias_DB'};
 
@@ -111,39 +113,55 @@ sub create_tally {
   }
 
 
-  print "\n\t\t       Tally Sheet for the votes cast. \n \n";
-  print "   The format is:\n";
-
-  if ($Config{Secret}) {
-    print "       \"V: vote \t\tMD5SUM\"\n";
-    print " You may locate the MD5SUM corresponding to a debian login ID,\n";
-    print " given the associated secret token returned with the ack,\n";
-    print " by simply running md5sum. Forexample, for login ID srivasta, and\n";
-    print " the secret token 0123456789ABCDE, the following invocation works:\n";
-    print "   % echo \"srivasta 0123456789ABCDE\" | md5sum\n";
+  if ($Config{Final_Tally}) {
+    open (TALLY, ">$tallyfile") ||
+      die "Could not open $tallyfile for writing:$!";
   }
   else {
-    print "       \"V: vote \tLogin\tName\"\n";
+    open (TALLY, ">$dummyfile") ||
+      die "Could not open $dummyfile for writing:$!";
   }
-  print " The vote block represents the ranking given to each of the \n";
-  print " candidates by the voter. \n";
-  print " ", "-=" x 34, "\n";
 
+  print TALLY "\n\t\t       Tally Sheet for the votes cast. \n \n";
+  print TALLY "   The format is:\n";
+
+  if ($Config{Secret}) {
+    print TALLY "       \"V: vote \t\tMD5SUM\"\n";
+    print TALLY " You may locate the MD5SUM corresponding to a debian login ID,\n";
+    print TALLY " given the associated secret token returned with the ack,\n";
+    print TALLY " by simply running md5sum. Forexample, for login ID srivasta, and\n";
+    print TALLY " the secret token 0123456789ABCDE, the following invocation works:\n";
+    print TALLY "   % echo \"srivasta 0123456789ABCDE\" | md5sum\n";
+  }
+  else {
+    print TALLY "       \"V: vote \tLogin\tName\"\n";
+  }
+  print TALLY " The vote block represents the ranking given to each of the \n";
+  print TALLY " candidates by the voter. \n";
+  print TALLY " ", "-=" x 34, "\n";
+
+  if (! $Config{Final_Tally}) {
+    print TALLY "\n";
+    print TALLY " THIS IS A DUMMY TALLY SHEET.";
+    print TALLY " THE ACTUAL BALLOTS CONTENTS WERE DIFFERENT\n";
+    print TALLY "\n";
+  }
+  print TALLY " ", "-=" x 34, "\n";
   my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
 
 #   foreach my $index (1 .. ($#valid_options + 1) ) {
-#     print "   ", " |" x ($index - 2), $index > 1 ? " / " : " ",
+#     print TALLY "   ", " |" x ($index - 2), $index > 1 ? " / " : " ",
 #       " Option $index", "--" x ($#valid_options + 2 - $index), "->: ",
-# 	$Config{"Option_$index"}, "\n";
+#       $Config{"Option_$index"}, "\n";
 #   }
-#   print "   ", " |" x ($#valid_options), " /\n";
+#   print TALLY "   ", " |" x ($#valid_options), " /\n";
   foreach my $index (1 .. ($#valid_options + 1) ) {
-    print "   ", "|" x ($index - 2), $index > 1 ? "/ " : " ",
+    print TALLY "\n";
+    print TALLY "   ", "|" x ($index - 2), $index > 1 ? "/ " : " ",
       " Option $index", "-" x ($#valid_options + 2 - $index), "->: ",
-	$Config{"Option_$index"}, "\n";
+	$Config{"Option_$index"};
   }
-  print "   ", "|" x ($#valid_options), "/\n";
-
+  print TALLY "   ", "|" x ($#valid_options), "/\n";
   my @count = sort keys %votes;
   while (@count) {
     if ($Config{Secret}) {
@@ -153,22 +171,22 @@ sub create_tally {
       }
       my $alias = $Moniker{ $name };
       if ($Config{Final_Tally}) {
-	print $votes{"$name"}, " \t\t", md5_hex("$name $alias\n"), "\n";
+	print TALLY $votes{"$name"}, " \t\t", md5_hex("$name $alias\n"), "\n";
       }
       else {
-	print "V: ", "-" x $#valid_options,  "1", " \t\t",
+	print TALLY "V: ", "-" x $#valid_options,  "1", " \t\t",
 	  md5_hex("$name $alias obfuscate\n"), "\n";
       }
     }
     else {
       my $name = shift @count;
       if ($Config{Final_Tally}) {
-          print $votes{"$name"};
-          printf "\t%15s\t%s\n", $name, $Names{"$name"};
+	print  TALLY $votes{"$name"};
+	printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
       }
       else {
-	print "V: ", "-" x $#valid_options,  "1";
-	printf "\t%15s\t%s\n", $name, $Names{"$name"};
+	print  TALLY "V: ", "-" x $#valid_options,  "1";
+	printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
       }
     }
   }

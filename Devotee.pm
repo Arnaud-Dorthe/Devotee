@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 16 22:44:43 2003
+# Last Modified On : Fri Oct 17 14:10:14 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 230
+# Update Count     : 235
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -315,13 +315,16 @@ Specify the base for the LDAP query
 		  'pgp_ring=s'   => sub {$::ConfOpts{"PGP_Keyring"}= "$_[1]";},
 		  'pub_ring=s'   => sub {$::ConfOpts{"PUB_Keyring"}= "$_[1]";},
 		  'sec_ring=s'   => sub {$::ConfOpts{"SEC_Keyring"}= "$_[1]";},
-		  'password=s'   => sub {$::ConfOpts{"Pass_Word"}= "$_[1]";},
+		  'password=s'   => sub {$::ConfOpts{"Pass_Word"}  = "$_[1]";},
 		  'secret!'      => sub {$::ConfOpts{"Secret"}     = "$_[1]";},
 		  's'            => sub {$::ConfOpts{"Secret"}     = "$_[1]";},
+		  'tally_file=s' => sub {$::ConfOpts{"Tally_File"} = "$_[1]";},
+		  'tally_dummy=s'=> sub {$::ConfOpts{"Tally_Dummy"}= "$_[1]";},
 		  'top_dir=s'    => sub {$::ConfOpts{"Top_Dir"}    = "$_[1]";},
 		  'quorum_out=s' => sub {$::ConfOpts{"Quorum_File"}= "$_[1]";},
 		  'quorum_detail=s' => sub {$::ConfOpts{"Quorum_Details"}= "$_[1]";},
 		  'quorum_err=s' => sub {$::ConfOpts{"Quorum_Error"}= "$_[1]";},
+		  'voters_file=s'=> sub {$::ConfOpts{"Voters_File"} = "$_[1]";},
 		 },
      Usage    => qq(Usage: $main::MYNAME [options]
 Author: $main::Author <$main::AuthorMail>
@@ -356,7 +359,10 @@ Version $main::Version
  --ldap_base <FILTER>  Specify the filter ot use for checking with LDAP
  --quorum_out <FILE>   Specify the file name where calculated quorum shall be kept
  --quorum_err <FILE>   Specify the file name where information of missing keys is kept
- --quorum_detail <FILE>Specify the file name where details of the quorum shall be kept
+ --quorum_detail <FILE>Specify the file name for developers uids and fingerprints
+ --tally_file  <FILE>  Specify the file name for the tally sheet
+ --tally_dummy <FILE>  Specify the file name for the dummy tally sheet
+ --voters_file <FILE>  Specify the file name for the list of people who have voted
 ),
      Defaults => {
 		  "Body_Suffix" => 'body',
@@ -393,8 +399,11 @@ Version $main::Version
 		  "Alias_DB"       => "AliasDB",   # Only needed if secret
 		  "Replay_DB"      => "ReplayDB",  # only if need gpg or need pgp
 		  "Quorum_File"    => "quorum.txt",# Where the quorum is written to
-		  "Quorum_Details" => "quorum.log",# Where the quorum is written to
-		  "Quorum_Error"   => "quorum.err",# Where the quorum is written to
+		  "Quorum_Details" => "quorum.log",# developers and fingerprints
+		  "Quorum_Error"   => "quorum.err",# missing keys
+		  "Tally_File"     => "tally.txt", # tally sheet 
+		  "Tally_Dummy"    => "dummy_tally.txt", # dummy tally sheet 
+		  "Voters_File"    => "voters.txt", # List of people who have voted
 		},
      SubDirs => {
 		 "Ack_Dir"      => "ack",

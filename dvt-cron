@@ -4,22 +4,53 @@ set -e
 workdir=/org/vote.debian.org/
 test -d $workdir || exit 1
 
+date
 cd $workdir
 
-conffile=./data/leader2002/debvote
+HTML_DIR=$HOME/public_html
+
+conffile=./data/gr_sec415/devotee.conf
 
 ./bin/dvt-cp       -c $conffile
+echo Copying Done
+
 ./bin/dvt-mime     -c $conffile
+echo mime decoding done
+
 ./bin/dvt-gpg      -c $conffile
+echo GPG checks done
+
 ./bin/dvt-ldap     -c $conffile
+echo LDAP checks done
+
 ./bin/dvt-extract  -c $conffile
+echo extracted message
+
 ./bin/dvt-parse    -c $conffile
+echo Parsed ballot
+
 ./bin/dvt-gack     -c $conffile
+echo generated ack
 
-echo -n "Hit enter top proceed with nacks."
-read answer
 ./bin/dvt-nack     -c $conffile
+echo sent out error messages
 
-echo -n "Hit enter to proceed with acks. "
-read answer
 ./bin/dvt-ack     -c $conffile
+echo sent out acks
+
+if [ -d $HTML_DIR ]; then
+   ./bin/dvt-voters    -c $conffile 
+   cp -f ./data/gr_sec415/voters.txt $HTML_DIR/gr_sec415_voters.txt;
+   echo generated list of voters
+
+   ./bin/dvt-tally     -c $conffile 
+   cp -f ./data/gr_sec415/dummy_tally.txt $HTML_DIR/dummy_gr_sec415_tally.txt
+   echo did the dummy tally sheet
+
+   touch $HOME/gr_sec415_tally.txt
+   chmod 600 $HOME/gr_sec415_tally.txt
+   ./bin/dvt-tally   --final_tally   -c $conffile 
+   echo tallying done
+fi
+rm ./data/gr_sec415/tmp/*
+
