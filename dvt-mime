@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 01:41:16 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 42
+# Last Modified On : Thu Oct 14 18:48:01 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 43
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -207,8 +207,8 @@ sub demime_messages {
       #  outside the message body or signature so that no one may
       #  attach a bogus ballot to a signed message by some developer.
       #
-      $msg_body =^ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
-      $msg_body =^ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
+      $msg_body =~ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
+      $msg_body =~ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
 
       print DATA $msg_body;
       close(DATA);
