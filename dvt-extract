@@ -45,27 +45,27 @@ use MIME::Decoder::Binary;
 
 =head1 NAME
 
-cvt-extract - Decode and save the body of the message in a form suitable for parsing
+dvt-extract - Decode and save the body of the message in a form suitable for parsing
 
 =cut
 
 =head1 SYNOPSIS
 
-dvt-mime -c /path/to/config 
+dvt-extract -c /path/to/config 
 
 =cut
 
 =head1 DESCRIPTION
 
 This routine is designed to handle various forms of MIME
-encampulation, including PGP?MIME, and create a decoded body text in a
+encampulation, including PGP/MIME, and create a decoded body text in a
 format that can be easily checked for cryptograhic signatures.
 
 The idea here is to be forgiving of MIME errors and be able to present
-as many signed votes toi the signature verifier as possible.
+as many signed votes to the signature verifier as possible.
 
-Additionally, this script attempts to be idepotent. It is also
-incremental, unless a force option is given. in which case it
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
 re-decodes previously decoded messages.
 
 =cut
@@ -80,8 +80,8 @@ Body_Dir, Msg_Suffix, Msg_Preffix, Force, and Temp_Dir.
 =head3 extract_messages
 
 This routine is where the grunt work occurs. After obtaining a lock
-on the file in the sppol directory, we copy th efiles over to the work
-directory, and wrte diagnostincs for any failure.
+on the file in the spool directory, we copy the files over to the work
+directory, and write diagnostincs for any failure.
 
 =cut
 

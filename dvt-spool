@@ -57,7 +57,7 @@ configuration.
 The emphasis here is safety, and alacrity: this routine needs to be
 very light weight, in order to scale to large numbers of votes, and be
 able to safely deliver the contents to the disk even under high loads.
-Due to this extremly simple goal, there are few configurable
+Due to this extremely simple goal, there are few configurable
 parameters, and even fewer command line options. The resulting files
 shall be marked read only. The file names are chosen to sort
 correctly.

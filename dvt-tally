@@ -60,11 +60,11 @@ is determined from LDAP, using the key fingerprint as a filter, shall
 be used as primary index, allowing for developers with multiple keys
 to still be able to replace their vote. 
 
-The tally sheet produced depends on a couple of factors; firtsly,
-whether this is the fiunal tally or not (in the case it is not, a
+The tally sheet produced depends on a couple of factors; firstly,
+whether this is the final tally or not (in the case it is not, a
 dummy tally sheet is produced). Secondly, if this is a secret ballot
 vote, the tally sheet is produced with the alias of the voter rather
-than the name; the alis having been sent in when the acknowledgement
+than the name; the alias having been sent in when the acknowledgement
 was generated for the first vote cast by the voter.
 
 =cut

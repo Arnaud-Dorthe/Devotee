@@ -67,7 +67,7 @@ dvt-quorum -c /path/to/config
 This utility calculates the current Quorum requirements for a Debian
 Project General Resolution vote, and is fairly Debian specific. 
 
-Not only does thi calculate the quorum, it also generates a list of
+Not only does this calculate the quorum, it also generates a list of
 developers (and their key fingerprints) who were eligible to vote.
 Also recorded are any missing keys; that is, keys whose fingerprints
 live in the keyring but not in the LDAP database.
@@ -78,9 +78,9 @@ live in the keyring but not in the LDAP database.
 
 It starts by looking at all the fingerprints for all the keys in the
 keyrings specified, and caching them. Then, it contacts the LDAP
-server, uding the configured details, and gets the uids and
+server, using the configured details, and gets the uids and
 fingerprints registered with LDAP that match the filter (the default
-filter filters on the basis of the Debian develkopers group in LDAP)..
+filter filters on the basis of the Debian develkopers group in LDAP).
 
 Then, it records the UID's associated with fingerprints that are
 present both in the keyring, as well as belong to a Debian developer

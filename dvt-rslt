@@ -55,9 +55,9 @@ Produce the results, taking into consideration the tally, quorum
 requirements, and the per option majority requirements, if any.
 This routine is the heart of the voting system. It takes into account
 quorum requirements (reading the output file produced by dvt-quorum),
-ans also the configured majority requirements, if any.
+and also the configured majority requirements, if any.
 
-It reads the tally sheet prodiced by dvt-tally, and creates the
+It reads the tally sheet produced by dvt-tally, and creates the
 initial beat matrix; and the pairwise defeat list, and finally the
 schwartz set. If there are defeats between the members of the schwartz
 set, it drops the weakest defeat and repeats, until there is a winner.

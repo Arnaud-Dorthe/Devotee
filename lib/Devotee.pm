@@ -57,7 +57,7 @@ $::RD_HINT  =1;
 
 =head1 NAME
 
-Devotee - The common parts of the DEbian VOTE Engine
+Devotee - The common parts of the DEbian VOTe EnginE
 
 =head1 SYNOPSIS
 
@@ -107,7 +107,7 @@ individual scripts.
 
 =over 2
 
-This specfies the top directory under which data for the vote shall be
+This specifies the top directory under which data for the vote shall be
 gathered. This directory shall contain the subdirs used by the engine
 (unless specifically overridden), contain the common lock file, and
 the replay and alias databases. The default for this is the users home
@@ -125,7 +125,7 @@ directory.
 =over 2
 
 Normally, most B<Devotee> scripts run incrementally, and thus only
-process new and previously unporcessed ballots.  The B<Force>
+process new and previously unprocessed ballots.  The B<Force>
 directive, set by B<--force> or B<-f>, and unset by B<--noforce>,
 directs the scripts to redo the work even though the ballot in
 question had been processed already, over writing previously created
@@ -138,7 +138,7 @@ output.  The default is B<OFF>.
 =over 2
 
 Set when you need the final tally sheet for a secret ballot. Without
-tis option, the tally sheet generated for a secret ballot shall be
+this option, the tally sheet generated for a secret ballot shall be
 obfuscated. Has no affect on non secret votes.
 
 =back
@@ -156,7 +156,7 @@ Ballot, we create an alias database to create random monikers for each
 voter, and the final tally sheet has the MD5SUM of the ID of each
 voter and the secret moniker. This way, each voter may validate that
 their vote exists on the tally sheet, but maintains the secrecy of the
-vote. This directive is set by B<--secret> or B<-s>,, and negated by
+vote. This directive is set by B<--secret> or B<-s>, and negated by
 B<--nosecret>. The default is B<OFF>.
 
 =back
@@ -332,7 +332,7 @@ Specify the file name for the list of people who have voted
 
 =over 2
 
-Specify the file name where the resutls should be put
+Specify the file name where the results should be put
 
 =back
 
@@ -394,7 +394,7 @@ Version $main::Version
   where options are:
  --help                This message.
  --config_file <FILE>  The file to read configuration data from 
- --top_dir     <DIR>   The top level directory where datafor the vote 
+ --top_dir     <DIR>   The top level directory where data for the vote 
                        shall be kept 
  --force  | -f         Force over writing previously created output. Generally
                        most Devotee scripts work incrementally, only
@@ -425,7 +425,7 @@ Version $main::Version
  --tally_file  <FILE>  Specify the file name for the tally sheet
  --tally_dummy <FILE>  Specify the file name for the dummy tally sheet
  --voters_file <FILE>  Specify the file name for the list of people who have voted
- --results     <FILE>  Specify the file name where the resutls should be put
+ --results     <FILE>  Specify the file name where the results should be put
 ),
      Defaults => {
 		  "Body_Suffix" => 'body',
@@ -618,12 +618,12 @@ sub read_config {
 =head2 validate
 
 This routine is responsible for ensuring that the parameters passed in
-(presumably from the command line) are given preference. I then does a
+(presumably from the command line) are given preference. It then does a
 sanity check over the setting, including ensuring that the directories
 required are present. Note that we only create the directories if
 asked to do so, and then again we only create them under the specified
-top level directory Top_Dir. If the seting say we need pgp or gpg, or
-both, we try and dermine the location of the public keyrings that we
+top level directory Top_Dir. If the seting says we need pgp or gpg, or
+both, we try and determine the location of the public keyrings that we
 may use.
 
 =cut
@@ -793,7 +793,7 @@ sub get_config_ref {
 
 This routine is used to lock the vote directory, and ensure only one
 process is running for the vote in question. Unlike the spooling
-process, the rest of the voting scripts can be run in sequece, and
+process, the rest of the voting scripts can be run in sequence, and
 thus this simple lock ensures that we can continue without treading on
 the toes of other voting scripts.
 
@@ -828,7 +828,7 @@ sub unlock_vote_dir {
 
 =head2 log_message
 
-This routine is Loggs a message into the Log dir
+This routine logs a message into the Log dir
 
 =cut
 

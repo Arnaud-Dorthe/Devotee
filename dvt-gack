@@ -55,7 +55,7 @@ dvt-gack - generate an acknowledgement for the vote
 
 =head1 SYNOPSIS
 
-dvt-ack -c /path/to/config
+dvt-gack -c /path/to/config
 
 =cut
 
@@ -65,8 +65,8 @@ This script is responsible for generating the acknowledgement for the
 vote, after ensuring that the ballot passed GPG and LDAP checks. If
 vote is by secret ballot, it creates a secret alias associated with
 the voter (since the voter is identified by the uid field of the LDAP
-data, each voter can be uniquely identified; we onl have one alias per
-voter, no matter how many times thew voter votes.  This alias, along
+data, each voter can be uniquely identified); we only have one alias per
+voter, no matter how many times the voter votes.  This alias, along
 with the UID of the voter, is passed on to md5sum; and the resulting
 opaque psuedo random string is displayed on the final tally sheet.
 

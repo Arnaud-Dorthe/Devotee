@@ -50,16 +50,16 @@ dvt-parse -c /path/to/config
 
 =head1 DESCRIPTION
 
-This routine is parses the body of the message (created by dvt-mime),
+This routine parses the body of the message (created by dvt-mime),
 and creates output that the tally script can handle.
 
 This routine parses the ballot, and writes out a compact, single line
 representation of the choices. It also flags ballots that it can't
 parse so that nacks can be sent out to the voter, detailing the
-problems encountrered while parsing.
+problems encountered while parsing.
 
-Additionally, this script attempts to be idepotent. It is also
-incremental, unless a force option is given. in which case it
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
 re-parses previously parsed messages.
 
 =cut

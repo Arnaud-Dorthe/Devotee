@@ -36,7 +36,7 @@ WriteMakefile(
 	      'NAME'        => 'Devotee',
 	      'VERSION_FROM' => 'lib/Devotee.pm',
 	      ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-	       ('ABSTRACT'    => 'The DEbian VOte Engine for email based votes',
+	       ('ABSTRACT'    => 'The DEbian VOTe EnginE for email based votes',
 		'AUTHOR'      => 'Manoj Srivastava <srivasta@debian.org>') : ()),
 	      'EXE_FILES'    =>  [qw[dvt-ack dvt-ballot dvt-cp
                                        dvt-extract dvt-gack dvt-gpg

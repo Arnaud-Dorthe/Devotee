@@ -52,7 +52,7 @@ dvt-cp -c /path/to/config
 =head1 DESCRIPTION
 
 This routine is designed to copy mail safely from the spool directory
-to a working directory. It nees to do so safely, and not copy partial
+to a working directory. It needs to do so safely, and not copy partial
 messages being written to by the spooling script. This is the second
 phase of Devotee.
 
@@ -62,8 +62,8 @@ working in the spooling directory needs to not tread over the spooling
 script, or to try and process a file not fully written by the spooling
 script.
 
-Additionally, this script attempts to be idepotent. It is also
-incremental, unless a force option is given. in which case it redoes
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it redoes
 the copy.
 
 =cut
@@ -76,8 +76,8 @@ Work_Dir, Lock_Suffix, Msg_Suffix, Msg_Preffix, and Force.
 =head3 copy_messages
 
 This routine is where the grunt work occurs. After obtaining a lock
-on the file in the sppol directory, we copy th efiles over to the work
-directory, and wrte diagnostincs for any failure.
+on the file in the sppol directory, we copy the files over to the work
+directory, and write diagnostics for any failure.
 
 =cut
 

@@ -66,7 +66,7 @@ processing.
 
 This is the where we take the files created by C<dvt-mime> and
 verify the cryptographic signature against the provided keyring. For
-each file in the work directory prodiced by dvt-mime, it checks the
+each file in the work directory produced by dvt-mime, it checks the
 signatures against the keyrings configured.  This utility handles both
 PGP/MIME signed messages, as well as the text/plain ascii armored
 signed messages.  When handling PGP/MIME messages, if it fails to
@@ -75,8 +75,8 @@ to validate against an alternate version of the body where the line
 ending is the normal unix newline; since some MUAs incorrectly
 generate the signature without normalizing the line endings.
 
-Additionally, this script attempts to be idepotent. It is also
-incremental, unless a force option is given. in which case it
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
 cleans out the replay database, and runs gpg all over again.
 
 =cut

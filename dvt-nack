@@ -44,7 +44,7 @@ use MIME::Decoder::Binary;
 
 =head1 NAME
 
-dvt-nack - send out rejection messages for problems encountrered in processing
+dvt-nack - send out rejection messages for problems encountered in processing
 
 =cut
 
@@ -63,8 +63,8 @@ the reasons for the failure. The mail is not encrypted, since the
 failure mode could be an inability to determine the GPG key for the
 voter.
 
-Additionally, this script attempts to be idepotent. It is also
-incremental, unless a force option is given. in which case it
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
 re-sends previously sent messages.
 
 

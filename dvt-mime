@@ -44,7 +44,7 @@ use MIME::Decoder::Binary;
 
 =head1 NAME
 
-dvt-mime - From the work dir, decode and save the bidy of the message
+dvt-mime - From the work dir, decode and save the body of the message
 
 =cut
 
@@ -66,13 +66,13 @@ step of ballot processing.
 The idea here is to be forgiving of MIME errors and be able to present
 as many signed votes to the signature verifier as possible.  To
 further this goal, we save the body part of RFC 3156 PGP/MIME encoded
-ballots in two formats: one in CRLF line ending formatm as required by
+ballots in two formats: one in CRLF line ending format as required by
 the RFC's, and another in simple UNIX line ending format, since some
 MUA's incorrectly calculate the signature over the raw message,
 without converting to CRLF format.
 
-Additionally, this script attempts to be idepotent. It is also
-incremental, unless a force option is given. in which case it
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
 re-decodes previously decoded messages.
 
 =cut
@@ -89,8 +89,8 @@ Sig_Suffix.
 =head3 demime_messages
 
 This routine is where the grunt work occurs. After obtaining a lock
-on the file in the sppol directory, we copy th efiles over to the work
-directory, and wrte diagnostincs for any failure.
+on the file in the sppol directory, we copy the files over to the work
+directory, and write diagnostincs for any failure.
 
 =cut
 

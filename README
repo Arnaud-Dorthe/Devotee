@@ -1,8 +1,8 @@
 
-		  DEVOTEE -- The DEbian VOTe Engine
+		  DEVOTEE -- The DEbian VOTe EnginE
 
 	This directory contains the code for the mechanism used by the
- Debian project to conduct email based votes. This system ahs been
+ Debian project to conduct email based votes. This system has been
  written from scratch for use by the Debian project, though it is
  hoped that other people would also find it useful.
 
@@ -18,8 +18,7 @@
  philosophy of having independent tools that do one thing well. (kinda
  goes along with modularity, independence, etc).
 
-
-	Devotee breaks down the coting process into a 9 steps, each of
+	Devotee breaks down the voting process into 9 steps, each of
  which is implemented by independent pieces of code (some of these
  steps have sub-parts, and each sub-part, then, is an independent
  script).
@@ -37,7 +36,7 @@
      The emphasis here is safety, and alacrity: this routine needs to
      be very light weight, in order to scale to large numbers of
      votes, and be able to safely deliver the contents to the disk
-     even under high loads.  Due to this extremly simple goal, there
+     even under high loads.  Due to this extremely simple goal, there
      are few configurable parameters, and even fewer command line
      options. The resulting files shall be marked read only. The file
      names are chosen to sort correctly.  This involves a mechanism to
@@ -74,8 +73,8 @@
           incorrectly calculate the signature over the raw message,
           without converting to CRLF format.
 
-          Additionally, this script attempts to be idepotent. It is
-          also incremental, unless a force option is given. in which
+          Additionally, this script attempts to be idempotent. It is
+          also incremental, unless a force option is given, in which
           case it re-decodes previously decoded messages.
 
 ----------------------------------------------------------------------
@@ -112,7 +111,7 @@
 	 fingerprint as a filter, shall be used as primary index,
 	 allowing for developers with multiple keys to still be able
 	 to replace their vote. The LDAP check also acts as an
-	 additrional check; there are keys in the keyring that brlong
+	 additional check; there are keys in the keyring that belong
 	 to administrative roles in Debian (Security Key, for
 	 instance), which should not have voting proviledges.
 
@@ -133,18 +132,18 @@
  5a:
   dvt-extract
          This routine is designed to handle various forms of MIME
-         encampulation, including PGP?MIME, and create a decoded body
-         in a form easy to parse (as opposed to not alterting anything
+         encampulation, including PGP/MIME, and create a decoded body
+         in a form easy to parse (as opposed to not altering anything
          in order to execute a cryptographic check).
  5b:
   dvt-parse - parse the ballot and create a single line synopsis
 	This routine parses the ballot, and writes out a compact,
 	single line representation of the choices. It also flags
 	ballots that it can't parse so that nacks can be sent out to
-	the voter, detailing the problems encountrered while parsing.
+	the voter, detailing the problems encountered while parsing.
 
-	Additionally, this script attempts to be idepotent. It is also
-	incremental, unless a force option is given. in which case it
+	Additionally, this script attempts to be idempotent. It is also
+	incremental, unless a force option is given, in which case it
 	re-parses previously parsed messages.
 
 ----------------------------------------------------------------------
@@ -155,7 +154,7 @@
 	  that the ballot passed GPG and LDAP checks. If vote is by
 	  secret ballot, it creates a secret alias associated with the
 	  voter (since the voter is identified by the uid field of the
-	  LDAP data, each voter can be uniquely identified; we onl
+	  LDAP data, each voter can be uniquely identified; we only
 	  have one alias per voter, no matter how many times thew
 	  voter votes.  This alias, along with the UID of the voter,
 	  is passed on to md5sum; and the resulting opaque psuedo
@@ -175,12 +174,12 @@
 	 email address and the key used are the canonical ones found
 	 in the LDAP database.
 
-	 Additionally, this script attempts to be idepotent. It is
-	 also incremental, unless a force option is given. in which
+	 Additionally, this script attempts to be idempotent. It is
+	 also incremental, unless a force option is given, in which
 	 case it re-sends previously sent messages.  The acks are
-	 dgitally signed by a vote key.
+	 digitally signed by a vote key.
 
- dvt-nack - send out rejection messages for problems encountrered in processing
+ dvt-nack - send out rejection messages for problems encountered in processing
       This routine sends out rejection letters for failed ballots,
       including the reasons for the failure. The mail is not
       encrypted, since the failure mode could be an inability to
@@ -202,11 +201,11 @@
 	   their vote.
 
 	   The tally sheet produced depends on a couple of factors;
-	   firtsly, whether this is the fiunal tally or not (in the
+	   firstly, whether this is the final tally or not (in the
 	   case it is not, a dummy tally sheet is produced). Secondly,
 	   if this is a secret ballot vote, the tally sheet is
 	   produced with the alias of the voter rather than the name;
-	   the alis having been sent in when the acknowledgement was
+	   the alias having been sent in when the acknowledgement was
 	   generated for the first vote cast by the voter.
 
  dvt-voters - List the people who have successfully voted
@@ -225,10 +224,10 @@ Stage 9: Determine the results of the vote.
  dvt-rslt - Given a tally sheet, calculate the Condorcet winner
 	This routine is the heart of the voting system. It takes into
 	account quorum requirements (reading the output file produced
-	by dvt-quorum), ans also the configured majority requirements,
+	by dvt-quorum), and also the configured majority requirements,
 	if any.
 
-	It reads the tally sheet prodiced by dvt-tally, and creates
+	It reads the tally sheet produced by dvt-tally, and creates
 	the initial beat matrix; and the pairwise defeat list, and
 	finally the schwartz set. If there are defeats between the
 	members of the schwartz set, it drops the weakest defeat and

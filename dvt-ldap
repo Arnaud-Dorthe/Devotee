@@ -57,20 +57,20 @@ dvt-ldap -c /path/to/config
 
 This routine is designed to query the debian ldap server to determine
 the unique uid for every debian developer.  This is the fifth phase in
-bellot processing.
+ballot processing.
 
 The unique uid that is determined from LDAP, using the key fingerprint
 as a filter, shall be used as primary index, allowing for developers
 with multiple keys to still be able to replace their vote. The LDAP
-check also acts as an additrional check; there are keys in the keyring
-that brlong to administrative roles in Debian (Security Key, for
-instance), which should not have voting proviledges.
+check also acts as an additional check; there are keys in the keyring
+that belong to administrative roles in Debian (Security Key, for
+instance), which should not have voting privileges.
 
 It is important to add a filter to limit the matches from LDAP, if,
-like Debian's LDAP, the server caontains entries for people other than
+like Debian's LDAP, the server contains entries for people other than
 those enfranchised.
 
-Additionally, this script attempts to be idepotent. It is also
+Additionally, this script attempts to be idempotent. It is also
 incremental, unless a force option is given, in which case it
 re-queries the LDAP DB.
 
