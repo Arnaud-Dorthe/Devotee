@@ -1,6 +1,11 @@
 
 		  DEVOTEE -- The DEbian VOTe Engine
 
+	This directory contains the code for the mechanism used by the
+ Debian project to conduct email based votes. This system ahs been
+ written from scratch for use by the Debian project, though it is
+ hoped that other people would also find it useful.
+
 	The emphasis here is data integrity. Votes should *NEVER EVER*
  be lost by the system. The mechanism is modular, and one should be
  able to test, and refactor, each module independently. The process is
@@ -232,5 +237,6 @@ Stage 9: Determine the results of the vote.
 	It puts the results in the configured output file.
 
 ----------------------------------------------------------------------
+Devotee is free software.  See the file COPYING for copying conditions.
 
  arch-tag: ca8faef9-9744-4ce5-8562-72e8279b8a06
