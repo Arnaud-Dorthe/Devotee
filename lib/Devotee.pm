@@ -12,6 +12,8 @@
 # HISTORY          :
 # Description      :
 #
+# arch-tag: 2e4c8af4-ff80-4d69-8943-5f613af3edbe
+#
 # Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
 #
 # This program is free software; you can redistribute it and/or modify
