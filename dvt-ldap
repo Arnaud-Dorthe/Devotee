@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 02:59:00 2005
+# Last Modified On : Wed Apr  6 03:39:10 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 51
+# Update Count     : 52
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -161,7 +161,7 @@ sub ldap_info {
   closedir(DATA);
 
   foreach $msg (sort @messages) {
-    next if !$force && -e "$ldapdir/$msg";
+    next if !$force && (-e "$ldapdir/$msg" || -e "$nackdir/$msg");
     my $ret = open(PRINT, "$checkdir/$msg");
     if (!$ret) {
       $dvt->log_message($msg, "Error Reading fingerprint from $checkdir/$msg:$!");

@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Apr  1 10:42:22 2005
+# Last Modified On : Wed Apr  6 11:35:33 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 125
+# Update Count     : 127
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -345,7 +345,8 @@ sub verify_messages {
         print NACK "\tThis ballot is being rejected, please vote again.\n\n";
         close NACK;
         $dvt->log_message($msg, $text);
-      } else {
+      } 
+      else {
         $Replay{"$radix"} = $text;
         open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
@@ -358,89 +359,107 @@ sub verify_messages {
         print SIG $keyid, "\n";
         close SIG;
       }
-    } else {
-      # OK, see if we have a mangled line ending version of the data
+    }
+    elsif (-r "$bodydir/$msg.crlf") {
+      # OK, we have a mangled line ending version of the data
       # This should normally not be accepted, since RFCs 1521 and 3156
       # are pretty clear about this, but we have traditionally
       # supported broken MUAs.
-      if (-r "$bodydir/$msg.crlf") {
-        # So it exists. Let us see if the dig was made over lines that
-        # end in \bn, rather than \r\n as it should be.
-        my $command_args;
+      # Let us see if the sig was made over lines that
+      # end in \bn, rather than \r\n as it should be.
+      my $command_args;
 
-        if (-r "$bodydir/$msg_sig") {
-          $command_args = [ "--verify",
-                        "$bodydir/$msg_sig",
-                        "$bodydir/$msg.crlf",
-                      ];
-        } else {
-          $command_args = [ "--verify", "$bodydir/$msg.crlf"];
-        }
-
-        my ( $stdout, $stderr, $status ) = ("", "", "");
-        ($stdout, $stderr, $status) =
-          invoke_gpg(
-                     'Configuration' => $dvt,
-                     'GnuPG Args' => \@gpg_args,
-                     'GnuPG Cmd'  => 'Verify',
-                     'Command Args' => $command_args
-                    );
-        # now we read the output
-        my @output = split /\n/, $stdout; # reading the output
-        my @result = split /\n/, $stderr; # reading the error
-        my @status = split /\n/, $status; # read the status info
-
-        $dvt->log_message($msg . ".good", $status);
-        if (grep {m/GOODSIG/} @status) {
-          my $fingerprint;
-          my $date;
-          my $timestamp;
-          my $radix;
-          my $keyid;
-          my $username;
-          my $subkey;
-          for (@status) {
-            # Newer GPG versions have extended subkey and expiry data
-            if (m/^\s*\[GNUPG:\]\s+VALIDSIG
-                  \s+(\S+)  #  <fingerprint in hex>
-                  \s+(\S+)       # <sig_creation_date>
-                   \s+(\S+)       # <sig-timestamp>
-                    \s+\S+ # <expire-timestamp>
-                     \s+\S+ # <sig-version>
-                      \s+\S+ # <reserved>
-                       \s+\S+ # <pubkey-algo>
-                        \s+\S+ # <hash-algo>
-                         \s+\S+ # <sig-class>
-                          \s+(\S+)       # <primary-key-fpr>
-                           \s*$
-                            /x) {
-              ($subkey, $date, $timestamp, $fingerprint) = ($1, $2, $3, $4);
-            } elsif (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
-              ($fingerprint, $date, $timestamp) = ($1, $2, $3);
-            } elsif (m/^\s*\[GNUPG:\] SIG_ID\s+(\S+)\s+(\S+)\s+(\S+)/) {
-              ($radix, $date, $timestamp) = ($1, $2, $3);
-            } elsif (m/^\s*\[GNUPG:\] GOODSIG\s+(\S+)\s+(.+)$/) {
-              ($keyid, $username) = ($1, $2);
-            }
-          }
-          # We know that this message has appeared before in the
-          # replaydb, so no point in checking.
-          open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
-            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-          chmod 0660, "$checkdir/$msg_base.$msg_suffix";
-          print GOOD $fingerprint, "\n";
-          close GOOD;
-          open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
-            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-          chmod 0660, "$sigdir/$msg_base.$msg_suffix";
-          print SIG $keyid, "\n";
-          close SIG;
-          # record the fact that we succeeded on a line-ending mangled version.
-          $dvt->log_message($msg . ".crlferr", 
-                            "Matched message with \\n line endings\n");
-          return;
-        }
+      if (-r "$bodydir/$msg_sig") {
+        $command_args = [ "--verify",
+                          "$bodydir/$msg_sig",
+                          "$bodydir/$msg.crlf",
+                        ];
+      } else {
+        $command_args = [ "--verify", "$bodydir/$msg.crlf"];
       }
+
+      my ( $stdout, $stderr, $status ) = ("", "", "");
+      ($stdout, $stderr, $status) =
+        invoke_gpg(
+                   'Configuration' => $dvt,
+                   'GnuPG Args' => \@gpg_args,
+                   'GnuPG Cmd'  => 'Verify',
+                   'Command Args' => $command_args
+                  );
+      # now we read the output
+      my @output = split /\n/, $stdout; # reading the output
+      my @result = split /\n/, $stderr; # reading the error
+      my @status = split /\n/, $status; # read the status info
+
+      $dvt->log_message($msg . ".good", $status);
+      if (grep {m/GOODSIG/} @status) {
+        my $fingerprint;
+        my $date;
+        my $timestamp;
+        my $radix;
+        my $keyid;
+        my $username;
+        my $subkey;
+        for (@status) {
+          # Newer GPG versions have extended subkey and expiry data
+          if (m/^\s*\[GNUPG:\]\s+VALIDSIG
+                \s+(\S+)  #  <fingerprint in hex>
+                \s+(\S+)       # <sig_creation_date>
+                 \s+(\S+)       # <sig-timestamp>
+                  \s+\S+ # <expire-timestamp>
+                   \s+\S+ # <sig-version>
+                    \s+\S+ # <reserved>
+                     \s+\S+ # <pubkey-algo>
+                      \s+\S+ # <hash-algo>
+                       \s+\S+ # <sig-class>
+                        \s+(\S+)       # <primary-key-fpr>
+                         \s*$
+                          /x) {
+            ($subkey, $date, $timestamp, $fingerprint) = ($1, $2, $3, $4);
+          } elsif (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
+            ($fingerprint, $date, $timestamp) = ($1, $2, $3);
+          } elsif (m/^\s*\[GNUPG:\] SIG_ID\s+(\S+)\s+(\S+)\s+(\S+)/) {
+            ($radix, $date, $timestamp) = ($1, $2, $3);
+          } elsif (m/^\s*\[GNUPG:\] GOODSIG\s+(\S+)\s+(.+)$/) {
+            ($keyid, $username) = ($1, $2);
+          }
+        }
+        # We know that this message has appeared before in the
+        # replaydb, so no point in checking.
+        open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+        chmod 0660, "$checkdir/$msg_base.$msg_suffix";
+        print GOOD $fingerprint, "\n";
+        close GOOD;
+        open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+        chmod 0660, "$sigdir/$msg_base.$msg_suffix";
+        print SIG $keyid, "\n";
+        close SIG;
+        # record the fact that we succeeded on a line-ending mangled version.
+        $dvt->log_message($msg . ".crlferr", 
+                          "Matched message with \\n line endings\n");
+      }
+      else {
+        # Failure.
+        $text = "There was a problem verifying the signature on the ballot.\n";
+        $text   .=  "-=" x 35;
+        $text   .= "\n";
+        $text   .= join "", grep { m/^\s*gpg:/ } @result;
+        $text   .= "\n";
+        $text   .= join "", @status;
+        $text   .=  "-=" x 35;
+        $text   .= "\n\n";
+        open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+          die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+        chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+        print NACK $text;
+        print NACK "\tThis ballot is being rejected.\n\n";
+        close NACK;
+        $dvt->log_message($msg, $text);
+      }
+    }
+    else {
       # Failure.
       $text = "There was a problem verifying the signature on the ballot.\n";
       $text   .=  "-=" x 35;
@@ -450,7 +469,6 @@ sub verify_messages {
       $text   .= join "", @status;
       $text   .=  "-=" x 35;
       $text   .= "\n\n";
-
       open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
         die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
       chmod 0660, "$nackdir/$msg_base.$msg_suffix";
@@ -551,7 +569,8 @@ sub verify_messages {
         print NACK "\tThis ballot is being rejected, please vote again.\n\n";
         close NACK;
         $dvt->log_message($msg, $text);
-      } else {
+      }
+      else {
         $Replay{"$radix"} = $text;
         open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
@@ -564,7 +583,8 @@ sub verify_messages {
         print SIG $keyid, "\n";
         close SIG;
       }
-    } else {
+    }
+    else {
       # Failure.
       $text = "There was a problem verifying the signature on the ballot.\n";
       $text   .=  "-=" x 35;

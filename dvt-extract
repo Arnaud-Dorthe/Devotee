@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 00:31:47 2005
+# Last Modified On : Wed Apr  6 03:42:23 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 81
+# Update Count     : 84
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -159,6 +159,7 @@ sub extract_messages {
   my $workdir           = $Config{'Work_Dir'};
   my $bodydir           = $Config{'Body_Dir'};
   my $ldapdir           = $Config{"LDAP_Dir"};
+  my $nackdir     = $Config{"Nack_Dir"};
 
   my $msg_suffix        = $Config{'Msg_Suffix'};
   my $msg_preffix       = $Config{'Msg_Preffix'};
@@ -175,7 +176,7 @@ sub extract_messages {
 
   my $msg         ;
   foreach $msg (sort @messages) {
-    next if !$force && -e "$bodydir/$msg";
+    next if (!$force && (-e "$bodydir/$msg" || -e "$nackdir/$msg"));
     next        unless -e "$ldapdir/$msg";
     my $msg_body       = $msg;
     my $msg_encrypted  = $msg;
