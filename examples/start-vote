@@ -1,0 +1,9 @@
+# arch-tag: e2f2887b-0f66-47b7-8164-dc4991d08fb4
+
+cd /org/vote\.debian\.org/data/leader2005 || {
+         echo 'Execution directory inaccessible' >&2
+         exit 1
+}
+cp forward /org/vote.debian.org/mail/.forward-leader2005
+/usr/bin/crontab $HOME/etc/crontab
+

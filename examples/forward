@@ -1,0 +1,3 @@
+/org/vote.debian.org/data/rainbow/Ballots
+"|/org/vote.debian.org/bin/dvt-spool -c /org/vote.debian.org/data/rainbow/devotee.conf"
+secretary@debian.org

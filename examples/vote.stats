@@ -5,15 +5,32 @@
 # Created On       : Sat Mar 19 13:02:10 2005
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Apr  4 16:48:12 2005
+# Last Modified On : Tue Apr  5 11:02:42 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 23
+# Update Count     : 24
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
 # 
 # arch-tag: d5721f43-ff34-438a-b9f7-67cfc73b5d39
 # 
+
+# This script is a part of the Devotee package, and is 
+# Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
 
 
 if [ ! -d $HOME ]; then

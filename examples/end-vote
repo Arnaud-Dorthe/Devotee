@@ -1,0 +1,19 @@
+# arch-tag: 77986266-17e2-4fe1-9000-2a7029a04e14
+
+VOTE=leader2005
+
+cp -f /debian/home/srivasta/etc/crontab             /debian/home/srivasta/etc/crontab.old
+cp -f /debian/home/srivasta/etc/crontab.novote      /debian/home/srivasta/etc/crontab
+/usr/bin/crontab /debian/home/srivasta/etc/crontab
+
+cp -f /org/vote.debian.org/mail/.disabled           /org/vote.debian.org/mail/.forward-${VOTE}
+
+mv -f /org/vote.debian.org/ballots/${VOTE}.blt      /org/vote.debian.org/ballots/${VOTE}.old
+
+/org/vote.debian.org/bin/dvt-cron ${VOTE} 
+/debian/home/srivasta/bin/vote.stats
+
+cp -f /org/vote.debian.org/data/${VOTE}/results.txt /debian/home/srivasta/public_html/${VOTE}_results.txt
+cp -f /org/vote.debian.org/data/${VOTE}/results.png /debian/home/srivasta/public_html/${VOTE}_results.png
+cp -f /org/vote.debian.org/data/${VOTE}/tally.txt   /debian/home/srivasta/public_html/${VOTE}_tally.txt
+chmod -R +r /debian/home/srivasta/public_html/

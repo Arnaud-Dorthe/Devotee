@@ -5,9 +5,9 @@
 # Created On       : Mon Oct 20 23:16:09 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Apr  5 00:41:57 2005
+# Last Modified On : Tue Apr  5 01:27:59 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 7
+# Update Count     : 8
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -101,14 +101,14 @@ for ballot in $ballots; do
             cp -f $basedir/data/${vote}/dummy_tally.txt $html_dir/dummy_${vote}_tally.txt
         fi
 
-        uids=$(cd $basedir/data/$vote/ldap/; egrep ^uid: $(cd .$basedir/tally; ls -1 *.raw) 2>/dev/null | sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
+        uids=$(cd $basedir/data/$vote/ldap/; egrep ^uid: $(cd $basedir/data/$vote/tally; ls -1 *.raw) 2>/dev/null | sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
         tally=$(ls -1 $basedir/data/$vote/tally/*.raw 2>/dev/null | wc -l; )
         outfile=$basedir/data/${vote}/timeline/results.$(date +%s).txt
-        outgraph=${outfile%%txt}png
+        outgraph=${outfile%%txt}dot
         echo "The total numbers of votes tallied = $uids" >> $basedir/data/${vote}/results.txt
         if [ -d $basedir/data/${vote}/timeline ]; then
             cp -f $basedir/data/${vote}/results.txt $outfile
-            cp -f $basedir/data/${vote}/results.png $outgraph
+            cp -f $basedir/data/${vote}/results.dot $outgraph
         fi
 
         echo cleaning up
