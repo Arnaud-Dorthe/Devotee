@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Mar  9 13:27:09 2004
+# Last Modified On : Mon Mar 22 00:17:56 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 84
+# Update Count     : 85
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -90,7 +90,7 @@ sub winner {
   # FIXME: this really should be optional
   open(QUORUM, "$quorum_file") ||  die "Could not open $quorum_file:$!";
   while (<QUORUM>) {
-    next unless m/\s*K[^=]+=\s*(\S+)/;
+    next unless m/\s*Quorum[^=]+=\s*(\S+)/;
     $K = $1;
   }
 
