@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:26:19 2004
+# Last Modified On : Mon Apr  4 16:27:40 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 57
+# Update Count     : 80
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -77,18 +77,13 @@ This script pays attention to the configuration options Work_Dir,
 Body_Dir, Msg_Suffix, Msg_Preffix, Force, and Temp_Dir.
 
 
-=head3 extract_messages
-
-This routine is where the grunt work occurs. After obtaining a lock
-on the file in the spool directory, we copy the files over to the work
-directory, and write diagnostincs for any failure.
-
 =cut
+
 
 # Recursive routine for dumping an entity.
 #
 sub dump_entity {
-  my ($bodydir, $msg, $entity) = @_;
+  my ($dvt, $bodydir, $msg, $entity) = @_;
   my $IO;
 
   # Output the body:
@@ -96,7 +91,7 @@ sub dump_entity {
   if (@parts) {                 # multipart...
     my $i;
     foreach $i (0 .. $#parts) { # dump each part...
-      dump_entity($bodydir, $msg, $parts[$i]);
+      dump_entity($dvt, $bodydir, $msg, $parts[$i]);
     }
   } else {                      # single part...
     # Get MIME type, and display accordingly...
@@ -106,7 +101,7 @@ sub dump_entity {
       if ($IO = $body->open("r")) {
         my $ret = open(DATA, ">>$bodydir/$msg");
         if (!$ret) {
-          &log_message($msg, "Could not create output $bodydir/$msg");
+          $dvt->log_message($msg, "Could not create output $bodydir/$msg");
           return;
         }
         chmod 0660, "$bodydir/$msg";
@@ -114,7 +109,7 @@ sub dump_entity {
         $IO->close;
         close DATA;
       } else {                  # d'oh!
-        &log_message($msg, "couldn't find/open part: $!");
+        $dvt->log_message($msg, "couldn't find/open part: $!");
       }
     } elsif ($type =~ /^application$/ && $subtype=~ /^pgp$/) {
       my $disposition = $entity->head->mime_attr("content-disposition");
@@ -122,7 +117,7 @@ sub dump_entity {
         if ($IO = $body->open("r")) {
           my $ret = open(DATA, ">>$bodydir/$msg");
           if (!$ret) {
-            &log_message($msg, "Could not create output $bodydir/$msg");
+            $dvt->log_message($msg, "Could not create output $bodydir/$msg");
             return;
           }
           chmod 0660, "$bodydir/$msg";
@@ -130,7 +125,7 @@ sub dump_entity {
           $IO->close;
           close DATA;
         } else {                # d'oh!
-          &log_message($msg, "Could not create output $bodydir/$msg");
+          $dvt->log_message($msg, "Could not create output $bodydir/$msg");
           return;
         }
       }
@@ -146,6 +141,14 @@ sub dump_entity {
 }
 
 
+=head3 extract_messages
+
+This routine is where the grunt work occurs. After obtaining a lock
+on the file in the spool directory, we copy the files over to the work
+directory, and write diagnostincs for any failure.
+
+=cut
+
 sub extract_messages {
   my %params   = @_;
   die "Internal Error!" unless defined $params{'Configuration'};
@@ -153,13 +156,16 @@ sub extract_messages {
   my $dvt = $params{'Configuration'};
   my %Config = %{ $confref };
 
-  my $workdir     = $Config{'Work_Dir'};
-  my $bodydir     = $Config{'Body_Dir'};
+  my $workdir           = $Config{'Work_Dir'};
+  my $bodydir           = $Config{'Body_Dir'};
 
-  my $msg_suffix  = $Config{'Msg_Suffix'};
-  my $msg_preffix = $Config{'Msg_Preffix'};
-  my $force       = $Config{'Force'};
-  my $tmpdir      = $Config{'Temp_Dir'};
+  my $msg_suffix        = $Config{'Msg_Suffix'};
+  my $msg_preffix       = $Config{'Msg_Preffix'};
+  my $force             = $Config{'Force'};
+  my $tmpdir            = $Config{'Temp_Dir'};
+  my $body_suffix       = $Config{'Body_Suffix'};
+  my $encrypted_suffix  = $Config{"Encrypted_Suffix"};
+
 
   opendir(WORK, $workdir) || die "can't opendir $workdir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
@@ -169,19 +175,49 @@ sub extract_messages {
   my $msg         ;
   foreach $msg (sort @messages) {
     next if !$force && -e "$bodydir/$msg";
+    my $msg_body       = $msg;
+    my $msg_encrypted  = $msg;
+    $msg_body          =~ s/$msg_suffix$/$body_suffix/o;
+    $msg_encrypted     =~ s/$msg_suffix$/$encrypted_suffix/o;
 
-    my $parser = new MIME::Parser;
-    $parser->output_dir("$tmpdir");
-    $parser->output_to_core(0);
-
-    my $entity;
-    eval {$entity = $parser->parse_open("$workdir/$msg"); };
-    if ($@) {
-      &log_message($msg, "Could not parse message $msg");
-      next;
+    # If the ballot was encrypted, then we don't re-extract it (there
+    # would be no point, we would need to run gpg again. So, handle all
+    # the encrypted ballots early in extraction by simply copying over
+    # the results of the GnuPG decrypt operation.
+    if (-f "$bodydir/$msg_encrypted") {
+      my $ret = open (IN, "$bodydir/$msg_body");
+      if (!$ret) {
+        $dvt->log_message($msg,
+                     "Could not read decrypted message $bodydir/$msg_body");
+        return;
+      }
+      $ret = open(DATA, ">>$bodydir/$msg");
+      if (!$ret) {
+        $dvt->log_message($msg, "Could not create output $bodydir/$msg");
+        return;
+      }
+      chmod 0660, "$bodydir/$msg";
+      while (<IN>) {
+        print DATA $_;
+      }
+      close(IN);
+      close(DATA);
     }
+    else {
+      # Re xtract the message, with the qp-decoding etc turned on. 
+      my $parser = new MIME::Parser;
+      $parser->output_dir("$tmpdir");
+      $parser->output_to_core(0);
 
-    dump_entity($bodydir, $msg, $entity);
+      my $entity;
+      eval {$entity = $parser->parse_open("$workdir/$msg"); };
+      if ($@) {
+        $dvt->log_message($msg, "Could not parse message $msg");
+        next;
+      }
+
+      dump_entity($dvt, $bodydir, $msg, $entity);
+    }
   }
 }
 

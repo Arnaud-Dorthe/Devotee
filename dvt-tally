@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 30 11:33:31 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:30:02 2004
+# Last Modified On : Mon Apr  4 13:33:35 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 44
+# Update Count     : 45
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -131,18 +131,9 @@ sub create_tally {
     my $sn;
     while (<LDAP>) {
       chomp;
-      if (m/^uid: (\S+)/o) {
-        $uid = $1;
-      }
-      ;
-      if (m/^cn: (.*)$/o) {
-        $cn = $1;
-      }
-      ;
-      if (m/^sn: (.*)$/o) {
-        $sn = $1;
-      }
-      ;
+      if (m/^uid: (\S+)/o) { $uid = $1; };
+      if (m/^cn: (.*)$/o)  { $cn  = $1; };
+      if (m/^sn: (.*)$/o)  { $sn  = $1; };
     }
     close LDAP;
 

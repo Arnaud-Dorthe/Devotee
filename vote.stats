@@ -1,0 +1,524 @@
+#!/bin/bash
+#                               -*- Mode: Sh -*- 
+# run-vote.sh --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Sat Mar 19 13:02:10 2005
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Mon Apr  4 16:48:12 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 23
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# arch-tag: d5721f43-ff34-438a-b9f7-67cfc73b5d39
+# 
+
+
+if [ ! -d $HOME ]; then
+    exit 2;
+fi
+
+basedir=/org/vote.debian.org/
+BALLOTDIR=$basedir/ballots/
+datadir=$basedir/data/
+html_dir="$HOME/public_html"
+
+
+ballots=$(find $BALLOTDIR -type f -name \*.blt);
+
+echo "$ballots"
+for ballot in $ballots; do
+    vote=$(basename $ballot .blt; )
+    workdir=$datadir/$vote
+    config=$workdir/devotee.conf
+    count=$(egrep 'Current' $workdir/quorum.txt | sed -e 's/^.*= *//' -e 's/ *$//')
+    if [ -z "$count" ]; then count=1000; fi
+    title=$(egrep ^Title $config | sed -e 's/^.*= *//' -e 's/; *$//')
+    start_time=$(egrep ^Start_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
+    end_time=$(egrep ^End_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
+
+    
+    scratchdir="$HOME/tmp/${vote}"
+    if [ ! -d "$scratchdir" ]; then
+        mkdir -p "$scratchdir"
+    fi
+
+    cd "$scratchdir"
+
+    spool=$(ls -1 $workdir/spool/*.raw 2>/dev/null | wc -l; )
+
+    nack=0
+    work=$(ls -1 $workdir/work/*.raw 2>/dev/null | wc -l; )
+    body=$(ls -1 $workdir/body/*.body 2>/dev/null | wc -l; )
+    check=$(ls -1 $workdir/check/*.raw 2>/dev/null | wc -l; )
+    ldap=$(ls -1 $workdir/ldap/*.raw 2>/dev/null | wc -l; )
+    tally=$(ls -1 $workdir/tally/*.raw 2>/dev/null | wc -l; )
+    ack=$(ls -1 $workdir/ack/*.raw 2>/dev/null | wc -l; )
+    gack=$(ls -1 $workdir/ack/*.sent 2>/dev/null | wc -l; )
+    nack=$(ls -1 $workdir/nack/*.sent 2>/dev/null | wc -l; )
+    missing=$(($ack - $gack))
+    bad_ballot=$(($ldap  - $tally))
+
+    if [ $ldap -gt 0 ]; then
+        uids=$(cd $workdir/ldap/; egrep ^uid: $(cd $workdir/tally; ls -1 *.raw) 2>/dev/null | \
+            sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
+    fi
+
+
+
+    j=1
+    dirs="spool"
+    if [  $tally -gt 0 ]; then
+        dirs="spool tally"
+    else
+        k=$(date --rfc --utc -d "$start_time UTC");
+        echo $k 0 > ${scratchdir}/tally.dat
+    fi
+
+    for dir in $dirs; do
+        m=$(eval echo "\$$dir")
+        if [ $m -gt 0 ]; then
+            ls -ltr $workdir/$dir/*.raw | awk '{print $6, $7, $8;}' | while read i; 
+              do 
+              k=$(date --rfc --utc -d "$i CDT"); 
+              echo $k $j; j=$(($j +1)); 
+            done > ${scratchdir}/$dir.dat
+        else
+            k=$(date --rfc --utc -d "$start_time UTC");
+            echo $k 0 > ${scratchdir}/$dir.dat
+        fi
+    done
+
+
+    if [  $ack -gt 0 ]; then
+        candidate="ack"
+    else
+        k=$(date --rfc --utc -d "$start_time UTC");
+        echo $k 0 > ${scratchdir}/ack.dat
+    fi
+    if [ $nack -gt 0 ]; then
+        if [ -z "$candidate" ]; then
+            candidate="nack"
+        else
+            candidate="$candidate nack"
+        fi
+    else
+        k=$(date --rfc --utc -d "$start_time UTC");
+        echo $k 0 > ${scratchdir}/nack.dat
+    fi
+
+    if [ -n "$candidate" ]; then
+        for dir in $candidate ; do
+            m=$(eval echo "\$$dir")
+            if [ $m -gt 0 ]; then
+                ls -ltr $workdir/$dir/*.sent |
+                awk '{print $6, $7, $8;}' | while read i; 
+                  do 
+                  k=$(date --rfc --utc -d "$i CDT"); 
+                  echo $k $j; j=$(($j +1)); 
+                done > ${scratchdir}/$dir.dat
+            else
+                k=$(date --rfc --utc -d "$start_time UTC");
+                echo $k 0 > ${scratchdir}/$dir.dat
+            fi
+        done
+    fi  
+    expires=$(date --utc --rfc -d '1 hour')
+
+    if [ -e "$html_dir/${vote}_results.png" ]; then
+        position_graph="\
+	<tr class=\"Ignored\">
+	  <td  align=\"center\" colspan=\"6\">
+	     <img src=\"${vote}_results.png\" alt=\"Graph of the
+		standings of the candidates\">
+	  </td>
+	</tr>
+"
+    else
+        position_graph=""
+    fi
+
+    page_top="\
+<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
+<html>
+  <head>
+    <meta http-equiv=\"content-type\" content=\"text/html;charset=iso-8859-1\">
+    <meta http-equiv=\"keywords\" content=\"Debian\">
+    <meta name=\"description\" content=\"A Real time display of ${title}\">
+    <meta http-equiv=\"keywords\" content=\"Elections\">
+    <meta http-equiv=\"keywords\" content=\"Statistics\">
+    <meta http-equiv=\"keywords\" content=\"2003\">
+    <meta name=\"ROBOTS\" content=\"NOINDEX\">
+    <meta http-equiv=\"Pragma\" content=\"no-cache\"> 
+    <meta http-equiv=\"expires\" content=\"$expires\">
+    <meta http-equiv=\"Cache-Control\" content=\"3600\">
+    <meta http-equiv=\"Refresh\" 
+          content=\"3600;http://master.debian.org/~srivasta/${vote}.html\">
+    <link href=\"index.css\" rel=\"stylesheet\">
+    <title>${title}</title>
+  </head>
+
+  <body>
+    <h1 class=\"title\">${title}</h1>
+
+    <p class=\"remark\">
+    A <a href=\"${vote}_txt.html\">text only version</a> is also available.
+    </p>
+
+    <table width=\"90%\">
+      <tbody>
+        <tr class=\"Ignored\">
+          <th width=\"16%\">Ballots Received</th>
+          <th width=\"17%\">MIME Decoded</th>
+          <th width=\"16%\">Passed Sig Check</th> 
+          <th width=\"17%\">Passed LDAP Check</th>
+          <th width=\"16%\">Votes Tallied</th>
+	  <th>Rejects Sent</th>
+        </tr>
+        <tr class=\"Ignored\">
+          <td align=\"center\">$spool</td>
+          <td align=\"center\">$body</td>
+          <td align=\"center\">$check</td>
+          <td align=\"center\">$ldap</td>
+          <td align=\"center\">$tally</td>
+	  <td align=\"center\">$nack</td>
+        </tr>
+	<tr class=\"Ignored\">
+	  <th>Acks Created</th>
+	  <th>Acks Sent</th>
+	  <th>Acks Unsent</th>
+	  <th>Bad Ballot</th>
+	  <th colspan=\"2\">Unique Voters</th>
+	</tr>
+	<tr class=\"Ignored\">
+	  <td align=\"center\">$ack</td>
+	  <td align=\"center\">$gack</td>
+	  <td align=\"center\">$missing</td>
+	  <td align=\"center\">$bad_ballot</td>
+	  <td colspan=\"2\" align=\"center\"><a href=\"${vote}_voters.txt\">$uids</a></td>
+	</tr>
+	<tr>
+	  <td  align=\"center\" colspan=\"6\">
+	     <a href=\"${vote}_vote_detailed.html\">
+	      <img src=\"${vote}_vote.png\" alt=\"Graph of the
+		rate at which the votes are received\"></a>
+	  </td>
+	</tr>
+	<tr>
+	  <td  align=\"center\" colspan=\"6\">
+	    Click on the image above to get a Zoomed in version.<br> A
+            <a href=\"${vote}_tally.txt\">tally sheet</a> is
+            available.  While the voting is still open the tally is a
+            dummy one; after the vote, the final tally sheet shall be
+            put in place. Please note that for secret ballots the
+            md5sum on the dummy tally sheet is randomly generated, as
+            otherwise the dummy tally sheet would leak information
+            relating the md5 hash and the voter.  Additionally, the
+             <a href=\"${vote}_results.txt\">results</a> shall be
+             updated after the polls close. 
+	  </td>
+	</tr>
+        $position_graph
+      </tbody>
+    </table>
+   <br>
+    <div class=\"box\">
+    <p class=\"note\"><small>
+	Please note that the ballots are received asynchronously, and
+	the vote scripts are run just past the top of the hour. The
+        statistics here were gathered later, so there shall often be a
+	discrepancy between ballots received and the responses sent
+	(namely, ballots received since the vote processing scripts
+	were last run). Most the cases, where the acknowledgements
+	were generated, but were not sent, are due to the ballots
+	being signed with an expired key. Such ballots are counted, 
+	but no ack is sent, since GPG balks at encrypting to an expired 
+	key, and I tend to agree. Most of the bad ballots are due to 
+	the presence of a non printing character (usually one that 
+	displays as a space) in the ballot that confuses the parser.
+      </small>    </p>
+      </div>
+
+
+    <hr>
+    <address><a href=\"mailto:srivasta@debian.org\">Manoj Srivastava</a></address>
+    <div  style=\"font-size: 0.6em;\">
+    <SCRIPT type=\"text/javascript\">
+      <!--
+        document.write(\"Last Updated:\");
+        document.writeln(document.lastModified);
+        // -->
+      </SCRIPT>
+      </div>
+    <p class=\"hint\">
+      <a href=\"http://validator.w3.org/check/referer\"><img border=\"0\"
+          src=\"valid-html401.png\"
+          alt=\"Valid HTML 4.01!\" height=\"31\" width=\"88\"></a>
+      <a href=\"http://jigsaw.w3.org/css-validator/\">
+       <img style=\"border:0;width:88px;height:31px\"
+            src=\"vcss.png\" alt=\"Valid CSS!\"> </a>
+    </p>
+  </body>
+</html>
+"
+
+    gnuplot_file="\
+
+set title \"${title}\"
+
+set border 
+
+# Tue,  2 Apr 2003 11:03:00 GMT
+set xdata time
+set timefmt \"%d %b %Y %H:%M%S\"
+set xlabel \"Date/Time (UTC)\"
+
+set key left top 
+
+set ylabel \"Ballots\"
+set terminal png small color
+
+#set grid mxtics mytics
+set grid 
+set mytics 10
+set xtics  86400
+set mxtics 24
+
+set output \"${vote}_vote_detailed.png\"
+plot \"nack.dat\" using 2:7 title \"Rejected Ballots\" with linesp , \"tally.dat\" using 2:7 title \"Vote Tallied,\" with linesp , \"spool.dat\" using 2:7 title \"Received Ballots\" with linesp, \"ack.dat\" using 2:7 title \"Acknowledgements\" with lines 
+
+
+set format x \"%d\n%b\"
+set mxtics 2
+set mytics 2
+
+set xrange [\"${start_time}\":\"${end_time}\"]
+set xtics \"${start_time}\", 172800, \"${end_time}\"
+
+set yrange [0:$count]
+set output \"${vote}_vote.png\"
+
+replot
+
+set output \"${vote}_vote.txt\"
+set terminal dumb
+replot
+
+"
+
+    cd "$scratchdir"
+    echo "$gnuplot_file" > ${vote}.gnuplot
+
+    gnuplot ${vote}.gnuplot
+    mv -f  ${vote}_vote_detailed.png ${vote}_vote.png ${html_dir}/
+
+
+    echo "$page_top" > ${html_dir}/${vote}.html
+
+
+
+
+    text_only="\
+<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
+<html>
+  <head>
+    <meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\">
+    <meta http-equiv=\"keywords\" content=\"Debian\">
+    <meta name=\"description\" content=\"A Real time display of ${title}\">
+    <meta http-equiv=\"keywords\" content=\"Statistics\">
+    <meta name=\"ROBOTS\" content=\"NOINDEX\">
+    <meta http-equiv=\"Pragma\" content=\"no-cache\"> 
+    <meta http-equiv=\"expires\" content=\"$expires\">
+    <meta http-equiv=\"Cache-Control\" content=\"3600\">
+    <meta http-equiv=\"Refresh\" 
+          content=\"3600;http://master.debian.org/~srivasta/${vote}.html\">
+    <link href=\"index.css\" rel=\"stylesheet\">
+    <title>${title} (Text Only)</title>
+  </head>
+
+  <body>
+    <h1 class=\"title\">${title}</h1>
+
+    <table width=\"90%\">
+      <tbody>
+        <tr class=\"Ignored\">
+          <th>Ballots Received</th>
+          <td align=\"center\">$spool</td>
+        </tr>
+        <tr class=\"Ignored\">
+          <th>MIME Decoded</th>
+          <td align=\"center\">$body</td>
+        </tr>
+        <tr class=\"Ignored\">
+          <th>Passed Sig Check</th> 
+          <td align=\"center\">$check</td>
+        </tr>
+        <tr class=\"Ignored\">
+          <th>Passed LDAP Check</th>
+          <td align=\"center\">$ldap</td>
+        </tr>
+        <tr class=\"Ignored\">
+          <th>Votes Tallied</th>
+          <td align=\"center\">$tally</td>
+        </tr>
+        <tr class=\"Ignored\">
+	  <th>Rejects Sent</th>
+	  <td align=\"center\">$nack</td>
+        </tr>
+        <tr class=\"Ignored\">
+	  <th>Acks Created</th>
+	  <td align=\"center\">$ack</td>
+        </tr>
+        <tr class=\"Ignored\">
+	  <th>Acks Sent</th>
+	  <td align=\"center\">$gack</td>
+        </tr>
+        <tr class=\"Ignored\">
+	  <th>Acks Unsent</th>
+	  <td align=\"center\">$missing</td>
+        </tr>
+        <tr class=\"Ignored\">
+	  <th>Bad Ballot</th>
+	  <td align=\"center\">$bad_ballot</td>
+        </tr>
+        <tr class=\"Ignored\">
+	  <th>Unique Voters</th>
+	  <td align=\"center\"><a href=\"${vote}_voters.txt\">$uids</a></td>
+        </tr>
+        <tr>
+	  <td  align=\"center\" colspan=\"2\">
+            <pre>
+"
+
+    bottom="\
+            </pre>
+	  </td>
+        </tr>
+	<tr>
+	  <td  align=\"center\" colspan=\"2\">
+            A <a href=\"${vote}_tally.txt\">tally sheet</a> is
+            available.  While the voting is still open the tally is a
+            dummy one; after the vote, the final tally sheet shall be
+            put in place. Please note that for secret ballots the
+            md5sum on the dummy tally sheet is randomly generated, as
+            otherwise the dummy tally sheet would leak information
+            relating the md5 hash and the voter.  Additionally, the 
+            <a href=\"${vote}_results.txt\">results</a> shall be
+             updated after the polls close. 
+	  </td>
+	</tr>
+      </tbody>
+    </table>
+   <br>
+    <div class=\"box\">
+    <p class=\"note\"><small>
+	Please note that the ballots are received asynchronously, and
+	the vote scripts are run just past the top of the hour. The
+        statistics here were gathered later, so there shall often be a
+	discrepancy between ballots received and the responses sent
+	(namely, ballots received since the vote processing scripts
+	were last run). Most the cases, where the acknowledgements
+	were generated, but were not sent, are due to the ballots
+	being signed with an expired key. Such ballots are counted, 
+	but no ack is sent, since GPG balks at encrypting to an expired 
+	key, and I tend to agree. Most of the bad ballots are due to 
+	the presence of a non printing character (usually one that 
+	displays as a space) in the ballot that confuses the parser.
+      </small>    </p>
+      </div>
+
+
+    <hr>
+    <address><a href=\"mailto:srivasta@debian.org\">Manoj Srivastava</a></address>
+    <div  style=\"font-size: 0.6em;\">
+    <SCRIPT type=\"text/javascript\">
+      <!--
+        document.write(\"Last Updated:\");
+        document.writeln(document.lastModified);
+        // -->
+      </SCRIPT>
+      </div>
+    <p class=\"hint\">
+      <a href=\"http://validator.w3.org/check/referer\"><img border=\"0\"
+          src=\"valid-html401.png\"
+          alt=\"Valid HTML 4.01!\" height=\"31\" width=\"88\"></a>
+      <a href=\"http://jigsaw.w3.org/css-validator/\">
+       <img style=\"border:0;width:88px;height:31px\"
+            src=\"vcss.png\" alt=\"Valid CSS!\"> </a>
+    </p>
+  </body>
+</html>
+"
+
+    detailed_html="\
+<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
+<html>
+  <!--                             -*- Mode: Html -*- 
+   vote_detailed.html 
+   Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+   Created On       : Fri Mar  7 23:05:35 2003
+   Created On Node  : glaurung.green-gryphon.com
+   Last Modified By : Manoj Srivastava
+   Last Modified On : Fri Mar  7 23:57:30 2003
+   Last Machine Used: glaurung.green-gryphon.com
+   Update Count     : 6
+   Status           : Unknown, Use with caution!
+   HISTORY          : 
+   Description      : 
+   
+  -->
+  <head>
+    <meta http-equiv=\"content-type\" content=\"text/html;charset=iso-8859-1\">
+    <meta http-equiv=\"keywords\" content=\"Debian\">
+    <title>A detailed look at the vote statistics</title>
+    <link href=\"index.css\" rel=\"stylesheet\">
+    <meta name=\"description\" content=\"A Real time display of ${title}\">
+    <meta http-equiv=\"keywords\" content=\"Elections\">
+    <meta http-equiv=\"keywords\" content=\"Statistics\">
+    <meta http-equiv=\"keywords\" content=\"2003\">
+    <meta name=\"ROBOTS\" content=\"NOINDEX\">
+    <meta http-equiv=\"Pragma\" content=\"no-cache\"> 
+    <meta http-equiv=\"Cache-Control\" content=\"3600\">
+    <meta http-equiv=\"Refresh\" 
+      content=\"3600;http://master.debian.org/~srivasta/${vote}_vote_detailed.html\">
+  </head>
+
+  <body>
+    <h1 class=\"title\">A detailed look at the vote statistics</h1>
+
+    <p class=\"center\">
+      <img class=\"center\" src=\"${vote}_vote_detailed.png\" alt=\"Detailed viiew of 
+	voting activity\">
+    </p>
+
+    <hr>
+    <address><a href=\"mailto:srivasta@acm.org\">Manoj Srivastava</a></address>
+    <div  style=\"font-size: 0.6em;\">
+<!-- Created: Fri Mar  7 23:05:35 CST 2003 -->
+<!-- hhmts start -->
+Last modified: Fri Mar  7 23:57:30 CST 2003
+<!-- hhmts end -->
+      </div>
+    <p class=\"hint\">
+      <a href=\"http://validator.w3.org/check/referer\"><img border=\"0\"
+          src=\"valid-html401.png\"
+          alt=\"Valid HTML 4.01!\" height=\"31\" width=\"88\"></a>
+      <a href=\"http://jigsaw.w3.org/css-validator/\">
+       <img style=\"border:0;width:88px;height:31px\"
+            src=\"vcss.png\" alt=\"Valid CSS!\"> </a>
+
+    </p>
+  </body>
+</html>
+
+"
+
+    echo "$detailed_html"  > ${html_dir}/${vote}_vote_detailed.html
+    echo "$text_only" > ${html_dir}/${vote}_txt.html
+    perl -ple 's/\f//;' < ${vote}_vote.txt >> ${html_dir}/${vote}_txt.html
+    echo "$bottom"  >> ${html_dir}/${vote}_txt.html
+done
+
+

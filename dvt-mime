@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Apr  4 12:37:52 2005
+# Last Modified On : Mon Apr  4 16:10:42 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 57
+# Update Count     : 59
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -212,11 +212,11 @@ sub demime_messages {
       close(MSG);
     }
     else {
-      my $msg_body = $entity->body_as_string();
-      if ($msg_body =~ m/-----BEGIN PGP SIGNED MESSAGE-----/ms) {
+      my $msg_bodytxt = $entity->body_as_string();
+      if ($msg_bodytxt =~ m/-----BEGIN PGP SIGNED MESSAGE-----/ms) {
         my $ret = open(DATA, ">$bodydir/$msg_body");
         if (!$ret) {
-          $dvt->log_message($msg, "Could not create sig file $msg_body");
+          $dvt->log_message($msg, "Could not create file $msg_body");
           next;
         }
         chmod 0660, "$bodydir/$msg_body";
@@ -226,13 +226,13 @@ sub demime_messages {
         #  outside the message body or signature so that no one may
         #  attach a bogus ballot to a signed message by some developer.
         #
-        $msg_body =~ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
-        $msg_body =~ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
+        $msg_bodytxt =~ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
+        $msg_bodytxt =~ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
 
-        print DATA $msg_body;
+        print DATA $msg_bodytxt;
         close(DATA);
       }
-      elsif ($msg_body =~ m/-----BEGIN PGP MESSAGE-----/ms) {
+      elsif ($msg_bodytxt =~ m/-----BEGIN PGP MESSAGE-----/ms) {
         my $ret = open(DATA, ">$bodydir/$msg_encrypted");
         if (!$ret) {
           $dvt->log_message($msg, "Could not create sig file $msg_encrypted");
@@ -244,15 +244,23 @@ sub demime_messages {
         #  We eliminate every scrap of the message
         #  outside the message body 
         #
-        $msg_body =~ s/^.*(-----BEGIN PGP MESSAGE-----)/$1/ms;
-        $msg_body =~ s/(-----END PGP MESSAGE\-+).*$/$1\n/ms; 
+        $msg_bodytxt =~ s/^.*(-----BEGIN PGP MESSAGE-----)/$1/ms;
+        $msg_bodytxt =~ s/(-----END PGP MESSAGE\-+).*$/$1\n/ms; 
 
-        print DATA $msg_body;
+        print DATA $msg_bodytxt;
         close(DATA);
       }
       else {
         $dvt->log_message($msg, "No PGP signature found on Ballot");
-        next;
+        my $ret = open(DATA, ">$bodydir/$msg_body");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create file $msg_body");
+          next;
+        }
+        chmod 0660, "$bodydir/$msg_body";
+        print DATA $msg_bodytxt;
+        close(DATA);
+         next;
       }
     }
   }

@@ -5,9 +5,9 @@
 # Created On       : Mon Oct 20 23:16:09 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:25:43 2004
-# Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 6
+# Last Modified On : Wed Oct 29 15:28:06 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 3
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -88,8 +88,16 @@ echo tallying done
 echo Calculated results
 
 if [ -d $HTML_DIR ]; then
-    cp -f ./data/${vote}/voters.txt      $HTML_DIR/${vote}_voters.txt;
-    cp -f ./data/${vote}/dummy_tally.txt $HTML_DIR/dummy_${vote}_tally.txt
+   cp -f ./data/${vote}/voters.txt      $HTML_DIR/${vote}_voters.txt;
+   cp -f ./data/${vote}/dummy_tally.txt $HTML_DIR/dummy_${vote}_tally.txt
+fi
+
+uids=$(cd $workdir/data/$vote/ldap/; egrep ^uid: $(cd ../tally; ls -1 *.raw) 2>/dev/null | sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
+tally=$(ls -1 $workdir/data/$vote/tally/*.raw 2>/dev/null | wc -l; )
+outfile=./data/${vote}/timeline/results.$(date +%s).txt
+echo "The total numbers of votes tallied = $uids" >> ./data/${vote}/results.txt
+if [ -d ./data/${vote}/timeline ]; then
+   cp -f ./data/${vote}/results.txt $outfile
 fi
 
 echo cleaning up

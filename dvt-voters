@@ -5,9 +5,9 @@
 # Created On       : Wed Apr  3 21:12:43 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:30:27 2004
+# Last Modified On : Mon Apr  4 13:31:57 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 47
+# Update Count     : 48
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -104,13 +104,9 @@ sub create_list {
     die "Error Reading fingerprint from $ldapdir/$msg:$!" unless $ret;
     while (<LDAP>) {
       chomp;
-      if (m/^uid: (\S+)/o) {
-        $uid = $1; next;
-      } elsif (m/^cn: (.*)\s*$/o ) {
-        $cn  = $1; next;
-      } elsif (m/^sn: (.*)\s*$/o ) {
-        $sn  = $1; next;
-      }
+      if    (m/^uid: (\S+)/o)    { $uid = $1; next; }
+      elsif (m/^cn: (.*)\s*$/o ) { $cn  = $1; next; }
+      elsif (m/^sn: (.*)\s*$/o ) { $sn  = $1; next; }
     }
     close LDAP;
 

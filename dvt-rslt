@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Apr  4 11:53:51 2005
+# Last Modified On : Mon Apr  4 17:07:36 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 117
+# Update Count     : 126
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -476,13 +476,15 @@ EOM
     # winners (who get a different color fill)
 
     # Print Node information.
+    print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" [ style=\"filled\" ";
     if ($Schwartz[$i]) {
-      print GRAPH " \"", $Config{"Option_" . ($i + 1)},
-        "\" [ style=\"filled\", color=\"powderblue\" ];\n";
+      print GRAPH ", color=\"powderblue\", fontcolor=\"Navy Blue\"";
     }
-    else {
-      print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" [ style=\"filled\" ];\n";
+    if ($i == ($max_choices - 1)) {
+      print GRAPH ", shape=diamond, fontcolor=\"Red\"";
     }
+    print GRAPH ", fontname=\"Helvetica\", fontsize=10  ];\n";
+
 
     foreach my $j (0..($max_choices - 1)) {
       next if $i == $j;

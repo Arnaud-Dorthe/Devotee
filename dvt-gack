@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:26:42 2004
+# Last Modified On : Mon Apr  4 13:27:36 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 76
+# Update Count     : 77
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -145,10 +145,7 @@ sub generate_ack {
     my $uid;
     while (<LDAP>) {
       chomp;
-      if (m/^uid: (\S+)/o) {
-        $uid = $1;
-      }
-      ;
+      if (m/^uid: (\S+)/o) { $uid = $1; };
     }
     close LDAP;
 
