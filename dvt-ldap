@@ -111,7 +111,10 @@ sub ldap_callback {
   $entry or return;
 
   #my $output = $entry->get_value('uid');
-  my $uid = join '', $entry->get_value('uid');
+	#my $uid = join '', $entry->get_value('uid');
+	my $dn  = $entry->dn();
+	   $dn  =~ m/uid=(\w+),/o;
+	my $uid = $1;
   my $cn  = join '', $entry->get_value('cn');
   my $sn  = join '', $entry->get_value('sn');
   die "No UID found." unless $uid;
@@ -170,7 +173,7 @@ sub ldap_info {
     my $filter = $1;
     chomp($filter);
     $filter = "(keyfingerprint=$filter)";
-    my @attributes = ('uid', 'cn', 'sn' );
+    my @attributes = ('cn', 'sn' );
     eval {  $ldap->search ("base" => "$base", "filter" => "$filter",
 			   "attrs" => \@attributes,
 			   "callback" => sub {

@@ -97,6 +97,13 @@ Quorum_Details.
 
 =cut
 
+sub onerror {
+	my ($mesg) = @_;
+	print "Net::LDAP failure: " . $mesg->error . "\n";
+	exit 1 if ($mesg->is_error);
+	return $mesg;
+}
+
 sub do_quorum {
   my %params   = @_;
   die "Internal Error!" unless defined $params{'Configuration'};
@@ -148,7 +155,6 @@ sub do_quorum {
     $uids{$fingerprint} = $key->user_ids_ref->[0]->as_string;;
   }
 
-
   my $ldap = 
     new Net::LDAP($ldaphost, 
 		  "debug" => 0,
@@ -158,12 +164,16 @@ sub do_quorum {
       or die "Failed to create LDAP Handle for $ldaphost: $@";
 
   $ldap->bind ();
-  my @attributes = ('uid', 'keyfingerprint');
+  my @attributes = ('keyfingerprint');
   my $mesg = $ldap->search ("base" => "$base", "filter" => "$filter",
 			    "attrs" => \@attributes);
   $mesg->code && die $mesg->error;
-  foreach my $entry ($mesg->all_entries) {
-    my $uid = join '', $entry->get_value('uid');
+
+  foreach my $entry ($mesg->entries) {
+		my $dn = $entry->dn ( );
+		#my $uid = join '', $entry->get_value('uid');
+		$dn =~ m/uid=(\w+),/o;
+		my $uid = $1;
     next unless $uid;
     my @fingerprints = $entry->get_value('keyfingerprint');
     foreach my $keyfingerprint (@fingerprints) {
