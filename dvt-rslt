@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Mar 22 00:17:56 2004
+# Last Modified On : Sun Apr 11 10:24:18 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 85
+# Update Count     : 95
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -135,7 +135,10 @@ sub winner {
       }
     }
   }
-
+  for my $opt (0..($max_choices - 1)) {
+    print RESULTS "Option ", $opt + 1, " \"", $Config{"Option_" . ($opt + 1)},
+      "\"\n";
+  }
   print RESULTS <<EOF;
 
 In the following table, tally[row x][col y] represents the votes that
@@ -233,12 +236,14 @@ EOM
 	# i defeats j
 	$Defeats{$i}{$j} = $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i];
 	print RESULTS "  Option ", $i + 1, " defeats Option ",
-	  $j + 1, " by $Defeats{$i}{$j}\n";
+	  $j + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$i][$j],
+			 $Beat_Matrix[$j][$i], $Defeats{$i}{$j});
       } elsif ($Beat_Matrix[$i][$j] < $Beat_Matrix[$j][$i]) {
 	# j defeats i
 	$Defeats{$j}{$i} = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
 	print RESULTS "  Option ", $j + 1, " defeats Option ",
-	  $i + 1, " by $Defeats{$j}{$i}\n";
+	  $i + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$j][$i],
+			 $Beat_Matrix[$i][$j], $Defeats{$j}{$i});
       }
     }
   }
@@ -394,7 +399,9 @@ EOM
       foreach my $k (sort keys %Weakest) {
 	print RESULTS "\tOption ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
 	  $Weakest{$k}{'Loser'} + 1, " by ",
-	  "$Weakest{$k}{'Low'} votes\n";
+	    " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
+	      "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
+		"= $Weakest{$k}{'Low'} votes\n";
       }
       print RESULTS "Deleting weakest defeat(s)\n\n";
       foreach my $k (sort keys %Weakest) {
@@ -403,11 +410,6 @@ EOM
     }
   }
 }
-
-
-
-
-
 
 
 sub main {

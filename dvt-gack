@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 10:01:02 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 74
+# Last Modified On : Sun Apr 11 10:13:13 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 75
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -192,7 +192,9 @@ sub generate_ack {
     my $subject = "Acknowledgement for your vote";
 
     my $body = '';
-    $body  = "\tThis is an acknowledgement for your vote [record $msg]\n";
+    $body  = "Content-Type: text/plain\n";
+    $body .= "\n";
+    $body .= "\tThis is an acknowledgement for your vote [record $msg]\n";
     $body .= " sent in on $date" if $date;
     $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
     $body .= "\n"                                  unless $origsubject;
