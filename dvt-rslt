@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Mar  9 13:21:42 2004
+# Last Modified On : Tue Mar  9 13:27:09 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 83
+# Update Count     : 84
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -171,7 +171,7 @@ Looking at row 2, column 1, $Config{Option_2}
 received $Beat_Matrix[1][0] votes over $Config{Option_1}
 
 Looking at row 1, column 2, $Config{Option_1}
-received 34 $Beat_Matrix[0][1] votes over $Config{Option_2}.
+received $Beat_Matrix[0][1] votes over $Config{Option_2}.
 
 EOM
   ;
