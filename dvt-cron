@@ -38,19 +38,23 @@ echo sent out error messages
 ./bin/dvt-ack     -c $conffile
 echo sent out acks
 
+./bin/dvt-voters    -c $conffile
+echo generated list of voters
+
+./bin/dvt-tally     -c $conffile 
+echo did the dummy tally sheet
+
+./bin/dvt-tally   --final_tally   -c $conffile 
+echo tallying done
+
+./bin/dvt-rslt -c $conffile 
+echo Calculated results
+
 if [ -d $HTML_DIR ]; then
-   ./bin/dvt-voters    -c $conffile 
-   cp -f ./data/gr_sec415/voters.txt $HTML_DIR/gr_sec415_voters.txt;
-   echo generated list of voters
-
-   ./bin/dvt-tally     -c $conffile 
+   cp -f ./data/gr_sec415/voters.txt      $HTML_DIR/gr_sec415_voters.txt;
    cp -f ./data/gr_sec415/dummy_tally.txt $HTML_DIR/dummy_gr_sec415_tally.txt
-   echo did the dummy tally sheet
-
-   touch $HOME/gr_sec415_tally.txt
-   chmod 600 $HOME/gr_sec415_tally.txt
-   ./bin/dvt-tally   --final_tally   -c $conffile 
-   echo tallying done
 fi
-rm ./data/gr_sec415/tmp/*
+
+echo cleaning up
+find ./data/gr_sec415/tmp/ -type f -exec rm {} \;
 

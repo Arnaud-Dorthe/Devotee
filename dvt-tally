@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 30 11:33:31 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Oct 17 14:05:07 2003
+# Last Modified On : Sun Oct 19 18:18:45 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 37
+# Update Count     : 39
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -116,6 +116,7 @@ sub create_tally {
   if ($Config{Final_Tally}) {
     open (TALLY, ">$tallyfile") ||
       die "Could not open $tallyfile for writing:$!";
+    chmod 0660, "$tallyfile";
   }
   else {
     open (TALLY, ">$dummyfile") ||

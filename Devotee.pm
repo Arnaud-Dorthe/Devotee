@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Oct 17 14:10:14 2003
+# Last Modified On : Sun Oct 19 17:56:02 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 235
+# Update Count     : 239
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -325,6 +325,7 @@ Specify the base for the LDAP query
 		  'quorum_detail=s' => sub {$::ConfOpts{"Quorum_Details"}= "$_[1]";},
 		  'quorum_err=s' => sub {$::ConfOpts{"Quorum_Error"}= "$_[1]";},
 		  'voters_file=s'=> sub {$::ConfOpts{"Voters_File"} = "$_[1]";},
+		  'results=s'    => sub {$::ConfOpts{"Results"}     = "$_[1]";},
 		 },
      Usage    => qq(Usage: $main::MYNAME [options]
 Author: $main::Author <$main::AuthorMail>
@@ -363,6 +364,7 @@ Version $main::Version
  --tally_file  <FILE>  Specify the file name for the tally sheet
  --tally_dummy <FILE>  Specify the file name for the dummy tally sheet
  --voters_file <FILE>  Specify the file name for the list of people who have voted
+ --results     <FILE>  Specify the file name where the resutls should be put
 ),
      Defaults => {
 		  "Body_Suffix" => 'body',
@@ -392,8 +394,15 @@ Version $main::Version
 		  "Option_7"    => "",
 		  "Option_8"    => "",
 		  "Option_9"    => "",
-		  "Option_10"   => "",
-		  "Option_11"   => "",
+		  "Majority_1"  => "1",
+		  "Majority_2"  => "1",
+		  "Majority_3"  => "1",
+		  "Majority_4"  => "1",
+		  "Majority_5"  => "1",
+		  "Majority_6"  => "1",
+		  "Majority_7"  => "1",
+		  "Majority_8"  => "1",
+		  "Majority_9"  => "1",
 		 },
      Files   => {
 		  "Alias_DB"       => "AliasDB",   # Only needed if secret
@@ -404,6 +413,7 @@ Version $main::Version
 		  "Tally_File"     => "tally.txt", # tally sheet 
 		  "Tally_Dummy"    => "dummy_tally.txt", # dummy tally sheet 
 		  "Voters_File"    => "voters.txt", # List of people who have voted
+		  "Results"        => "results.txt",
 		},
      SubDirs => {
 		 "Ack_Dir"      => "ack",
