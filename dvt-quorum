@@ -5,9 +5,9 @@
 # Created On       : Thu Mar 13 18:07:30 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:29:05 2004
+# Last Modified On : Sun Mar 20 11:42:47 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 118
+# Update Count     : 120
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -230,8 +230,8 @@ sub do_quorum {
 
   print QUORUM " Current Developer Count = $count\n";
   print QUORUM " Q ( sqrt(#devel) / 2 ) = ",   sqrt($count)/2, "\n";
-  print QUORUM " K min(5, 3 x Q )       = ", 
-    (5 < 3*sqrt($count)/2) ? 5 : 3*sqrt($count)/2, "\n";
+  print QUORUM " K min(5, Q )           = ", 
+    (5 < sqrt($count)/2) ? 5 : sqrt($count)/2, "\n";
   print QUORUM " Quorum  (3 x Q )       = ", 3*sqrt($count)/2, "\n";
   close QUORUM;
 }

@@ -198,6 +198,7 @@ sub create_tally {
       " Option $index", "-" x ($#valid_options + 2 - $index), "->: ",
         $Config{"Option_$index"};
   }
+  print TALLY "\n";
   print TALLY "   ", "|" x ($#valid_options), "/\n";
   my @count = sort keys %votes;
   while (@count) {

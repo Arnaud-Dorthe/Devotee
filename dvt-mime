@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:48:01 2004
+# Last Modified On : Mon Apr  4 12:37:52 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 43
+# Update Count     : 57
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -102,14 +102,15 @@ sub demime_messages {
   my %Config = %{ $confref };
   my $dvt = $params{'Configuration'};
 
-  my $workdir     = $Config{'Work_Dir'};
-  my $msg_suffix  = $Config{'Msg_Suffix'};
-  my $msg_preffix = $Config{'Msg_Preffix'};
-  my $force       = $Config{'Force'};
-  my $bodydir     = $Config{'Body_Dir'};
-  my $tmpdir      = $Config{'Temp_Dir'};
-  my $body_suffix = $Config{'Body_Suffix'};
-  my $sig_suffix  = $Config{"Sig_Suffix"};
+  my $workdir           = $Config{'Work_Dir'};
+  my $msg_suffix        = $Config{'Msg_Suffix'};
+  my $msg_preffix       = $Config{'Msg_Preffix'};
+  my $force             = $Config{'Force'};
+  my $bodydir           = $Config{'Body_Dir'};
+  my $tmpdir            = $Config{'Temp_Dir'};
+  my $body_suffix       = $Config{'Body_Suffix'};
+  my $sig_suffix        = $Config{"Sig_Suffix"};
+  my $encrypted_suffix  = $Config{"Encrypted_Suffix"};
 
   # Remove the decoder that will change the input
   MIME::Decoder->uninstall('quoted-printable');
@@ -126,11 +127,13 @@ sub demime_messages {
 
   my $msg;
   foreach $msg (sort @messages) {
-    my $msg_body = $msg;
-    my $msg_sig = $msg;
-    $msg_body =~ s/$msg_suffix$/$body_suffix/o;
-    $msg_sig  =~ s/$msg_suffix$/$sig_suffix/o;
-    next if !$force && -e "$bodydir/$msg_body";
+    my $msg_body       = $msg;
+    my $msg_sig        = $msg;
+    my $msg_encrypted  = $msg;
+    $msg_body          =~ s/$msg_suffix$/$body_suffix/o;
+    $msg_sig           =~ s/$msg_suffix$/$sig_suffix/o;
+    $msg_encrypted     =~ s/$msg_suffix$/$encrypted_suffix/o;
+    next if !$force    && -e "$bodydir/$msg_body";
 
     my $parser = new MIME::Parser;
     $parser->output_dir("$tmpdir");
@@ -193,28 +196,66 @@ sub demime_messages {
       chmod 0660, "$bodydir/$msg_body";
       print DATA $data;
       close(DATA);
-    } else {
-      my $ret = open(DATA, ">$bodydir/$msg_body");
+    }                           # Try to handle any encrypted messages
+    elsif (($head->mime_type =~ /multipart\/encrypted/i) and
+         ( $entity->parts(0)->head->mime_type =~
+           /application\/pgp-encrypted/i) and 
+         ( $entity->parts(1)->head->mime_type =~
+           /application\/octet-stream/i) ) {
+      my $ret = open(MSG, ">$bodydir/$msg_encrypted");
       if (!$ret) {
-        $dvt->log_message($msg, "Could not create sig file $msg_body");
+        $dvt->log_message($msg, "Could not create file $msg_encrypted");
         next;
       }
-      chmod 0660, "$bodydir/$msg_body";
+      chmod 0660, "$bodydir/$msg_encrypted";
+      $entity->parts(1)->print_body(\*MSG);
+      close(MSG);
+    }
+    else {
       my $msg_body = $entity->body_as_string();
-      #  Massage body here. 
-      #
-      #  We eliminate every scrap of the message
-      #  outside the message body or signature so that no one may
-      #  attach a bogus ballot to a signed message by some developer.
-      #
-      $msg_body =~ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
-      $msg_body =~ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
+      if ($msg_body =~ m/-----BEGIN PGP SIGNED MESSAGE-----/ms) {
+        my $ret = open(DATA, ">$bodydir/$msg_body");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create sig file $msg_body");
+          next;
+        }
+        chmod 0660, "$bodydir/$msg_body";
+        #  Massage body here. 
+        #
+        #  We eliminate every scrap of the message
+        #  outside the message body or signature so that no one may
+        #  attach a bogus ballot to a signed message by some developer.
+        #
+        $msg_body =~ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
+        $msg_body =~ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
 
-      print DATA $msg_body;
-      close(DATA);
+        print DATA $msg_body;
+        close(DATA);
+      }
+      elsif ($msg_body =~ m/-----BEGIN PGP MESSAGE-----/ms) {
+        my $ret = open(DATA, ">$bodydir/$msg_encrypted");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create sig file $msg_encrypted");
+          next;
+        }
+        chmod 0660, "$bodydir/$msg_encrypted";
+        #  Massage body here. 
+        #
+        #  We eliminate every scrap of the message
+        #  outside the message body 
+        #
+        $msg_body =~ s/^.*(-----BEGIN PGP MESSAGE-----)/$1/ms;
+        $msg_body =~ s/(-----END PGP MESSAGE\-+).*$/$1\n/ms; 
+
+        print DATA $msg_body;
+        close(DATA);
+      }
+      else {
+        $dvt->log_message($msg, "No PGP signature found on Ballot");
+        next;
+      }
     }
   }
-
 }
 
 

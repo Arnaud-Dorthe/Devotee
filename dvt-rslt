@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:29:24 2004
+# Last Modified On : Mon Apr  4 11:53:51 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 99
+# Update Count     : 117
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -87,6 +87,7 @@ sub winner {
   my $tallyfile   = $Config{'Tally_File'};
   my $max_choices = $Config{'Max_Choices'};
   my $results     = $Config{'Results'};
+  my $graph       = $Config{'Graph'};
 
   # The constitution defines the maximum value of K to be 5
   my $K = 5;
@@ -110,6 +111,7 @@ sub winner {
   # OK. Start creating an output file.
   open (RESULTS, ">$results") || die "Could not open $results:$!";
   chmod 0660, "$results";
+
   my $now_string = gmtime;
   print RESULTS "Starting results calculation at $now_string\n\n";
 
@@ -464,6 +466,48 @@ EOM
       }
     }
   }
+  # Create the graphical results file in dot format.
+  open (GRAPH, ">$graph") || die "Could not open $graph:$!";
+  chmod 0660, "$graph";
+  # The header. This is a directed graph.
+  print GRAPH "digraph Results {\n  ordering=out;\n";
+  foreach my $i (0..($max_choices - 1)) {
+    # At this point, the Schwartz set is in place and contains all the
+    # winners (who get a different color fill)
+
+    # Print Node information.
+    if ($Schwartz[$i]) {
+      print GRAPH " \"", $Config{"Option_" . ($i + 1)},
+        "\" [ style=\"filled\", color=\"powderblue\" ];\n";
+    }
+    else {
+      print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" [ style=\"filled\" ];\n";
+    }
+
+    foreach my $j (0..($max_choices - 1)) {
+      next if $i == $j;
+      #  The beatpath should take into account transitive wins, and
+      #  have had all the weakest links removed, if needed, to resolve
+      #  circular ties.
+      if ($BeatPath{$i}{$j}{for}) {
+        my $win   = $BeatPath{$i}{$j}{for};
+        $win   -= $BeatPath{$j}{$i}{against}
+          if defined $BeatPath{$j}{$i}{against};
+
+        # We still use the simple two way contest margins to label the
+        # edge, since anything else is likely to confuse people.
+        my $label = $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i];
+
+        # Print the edge information.
+        print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" -> \"",
+          $Config{"Option_" . ($j + 1)}, "\" [ weight=",
+            int(1000/($win)),  ", label=\"$label\" ];\n";
+      }
+    }
+  }
+  # The footer.
+  print GRAPH "}\n";
+
 }
 
 

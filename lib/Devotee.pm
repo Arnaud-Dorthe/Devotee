@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat Dec 13 18:40:48 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 243
+# Last Modified On : Mon Apr  4 10:07:34 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 246
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -387,6 +387,7 @@ Specify the file name where the results should be put
 		  'quorum_err=s' => sub {$::ConfOpts{"Quorum_Error"}= "$_[1]";},
 		  'voters_file=s'=> sub {$::ConfOpts{"Voters_File"} = "$_[1]";},
 		  'results=s'    => sub {$::ConfOpts{"Results"}     = "$_[1]";},
+		  'graph=s'      => sub {$::ConfOpts{"Graph"}       = "$_[1]";},
 		 },
      Usage    => qq(Usage: $main::MYNAME [options]
 Author: $main::Author <$main::AuthorMail>
@@ -428,42 +429,43 @@ Version $main::Version
  --results     <FILE>  Specify the file name where the results should be put
 ),
      Defaults => {
-		  "Body_Suffix" => 'body',
-		  "Common_Lock" => 'lock',
-		  "Create_Dirs" => 0,
-		  "Force"       => 0,
-		  "Info_Suffix" => 'info',
-		  "Ldap_Base"   => "dc=debian,dc=org",
-		  "Ldap_Host"   => "db.debian.org",
-		  "Ldap_Filter" => "(gidnumber=800)",
-		  "Lock_Suffix" => 'lock',
-		  "Max_Choices" => 0,
-		  "Msg_Preffix" => 'msg',
-		  "Msg_Suffix"  => 'raw',
-		  "Secret"      => 1,
-		  "Sig_Suffix"  => 'sig',
-		  "Need_GPG"    => 1,
-		  "Need_PGP"    => 1,
-		  "Need_LDAP"   => 1,
-		  "Sign_Ack"    => 1,
-		  "Option_1"    => "None of the Above",
-		  "Option_2"    => "",
-		  "Option_3"    => "",
-		  "Option_4"    => "",
-		  "Option_5"    => "",
-		  "Option_6"    => "",
-		  "Option_7"    => "",
-		  "Option_8"    => "",
-		  "Option_9"    => "",
-		  "Majority_1"  => "1",
-		  "Majority_2"  => "1",
-		  "Majority_3"  => "1",
-		  "Majority_4"  => "1",
-		  "Majority_5"  => "1",
-		  "Majority_6"  => "1",
-		  "Majority_7"  => "1",
-		  "Majority_8"  => "1",
-		  "Majority_9"  => "1",
+                  "Body_Suffix"      => 'body',
+                  "Common_Lock"      => 'lock',
+                  "Create_Dirs"      => 0,
+                  "Force"            => 0,
+                  "Info_Suffix"      => 'info',
+                  "Ldap_Base"        => "dc=debian,dc=org",
+                  "Ldap_Host"        => "db.debian.org",
+                  "Ldap_Filter"      => "(gidnumber=800)",
+                  "Lock_Suffix"      => 'lock',
+		  "Max_Choices"      => 0,
+		  "Msg_Preffix"      => 'msg',
+		  "Msg_Suffix"       => 'raw',
+		  "Secret"           => 1,
+		  "Sig_Suffix"       => 'sig',
+                  "Encrypted_Suffix" => 'gpg',
+		  "Need_GPG"         => 1,
+		  "Need_PGP"         => 1,
+		  "Need_LDAP"        => 1,
+		  "Sign_Ack"         => 1,
+		  "Option_1"         => "None of the Above",
+		  "Option_2"         => "",
+		  "Option_3"         => "",
+		  "Option_4"         => "",
+		  "Option_5"         => "",
+		  "Option_6"         => "",
+		  "Option_7"         => "",
+		  "Option_8"         => "",
+		  "Option_9"         => "",
+		  "Majority_1"       => "1",
+		  "Majority_2"       => "1",
+		  "Majority_3"       => "1",
+		  "Majority_4"       => "1",
+		  "Majority_5"       => "1",
+		  "Majority_6"       => "1",
+		  "Majority_7"       => "1",
+		  "Majority_8"       => "1",
+		  "Majority_9"       => "1",
 		 },
      Files   => {
 		  "Alias_DB"       => "AliasDB",   # Only needed if secret
@@ -475,6 +477,7 @@ Version $main::Version
 		  "Tally_Dummy"    => "dummy_tally.txt", # dummy tally sheet 
 		  "Voters_File"    => "voters.txt", # List of people who have voted
 		  "Results"        => "results.txt",
+		  "Graph"          => "results.dot",
 		},
      SubDirs => {
 		 "Ack_Dir"      => "ack",

@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:27:06 2004
+# Last Modified On : Fri Apr  1 10:42:22 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 88
+# Update Count     : 125
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -39,6 +39,7 @@ use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 use IO::Handle;
+use IO::Select;
 use GnuPG::Interface;
 use DB_File;
 
@@ -79,15 +80,119 @@ Additionally, this script attempts to be idempotent. It is also
 incremental, unless a force option is given, in which case it
 cleans out the replay database, and runs gpg all over again.
 
-=cut
-
-
 =head2 Internal Implementation
 
 This script pays attention to the configuration parameters Top_Dir,
 Body_Dir, Check_Dir, Nack_Dir, Sig_Dir, Msg_Suffix, Msg_Preffix,
 Force, Body_Suffix, GPG_Keyring, PGP_Keyring, SEC_Keyring,
 PUB_Keyring, Replay_DB, and Sig_Suffix.
+
+=cut
+
+sub invoke_gpg {
+  my %params   = @_;
+  my $cmd_ref  = $params{'Command Args'};
+  my $args_ref = $params{'GnuPG Args'};
+  my $action   = $params{'GnuPG Cmd'};
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+  my $topdir      = $Config{'Top_Dir'};
+
+  my ( $input_fh,   $output_fh, $error_fh, $status_fh )
+    = ( IO::Handle->new(),
+        IO::Handle->new(),
+        IO::Handle->new(),
+        IO::Handle->new()
+      );
+
+  my $handles = GnuPG::Handles->new(
+                                    stdin      => $input_fh,
+                                    stdout     => $output_fh,
+                                    stderr     => $error_fh,
+                                    status     => $status_fh,
+                                   );
+  my $gnupg = GnuPG::Interface->new();
+
+  $gnupg->options->hash_init( 'no_options' => 1,
+                              'armor'   => 1,
+                              'homedir' => $topdir,
+                              'meta_interactive' => 0,
+                              'rfc1991' => 1,
+                              'extra_args' => [ @$args_ref ]
+                            );
+  my $pid;
+  if ($action =~ m/Verify/i) {
+    $pid = $gnupg->verify( handles      => $handles,
+                           command_args => $cmd_ref);
+  } elsif ($action =~ m/decrypt/i) {
+    # indicate our pasphrase through the convience method
+    $gnupg->passphrase ($params{'PassPhrase'});
+    $pid = $gnupg->decrypt( handles      => $handles,
+                            command_args => $cmd_ref);
+
+#     my $cipher_file = IO::File->new($params{'Input File'});
+#     my $sin    = IO::Select->new();
+#     $sin->add($input_fh);
+#     if ($sin->can_write()) {
+#       print $input_fh $_ while <$cipher_file>;
+#     }
+  } elsif ($action =~ m/encrypt/i) {
+    $gnupg->passphrase ($params{'PassPhrase'});
+    $pid = $gnupg->encrypt( handles      => $handles);
+
+    my $sin    = IO::Select->new();
+    $sin->add($input_fh);
+    if ($sin->can_write()) {
+      print $input_fh $params{'Body'};
+    }
+  } elsif ($action =~ m/get key/i) {
+    $pid = $gnupg->recv_keys( handles      => $handles,
+                              command_args => @$cmd_ref);
+  } elsif ($action =~ m/list key/i) {
+    $pid = $gnupg->list_public_keys( handles      => $handles,
+                                     command_args => @$cmd_ref);
+  }
+  # this closes the communication channel,
+  # indicating we are done
+  close $input_fh;
+
+  # now we read the output
+  my ( $stdout, $stderr, $status ) = ( "", "", "" );
+  my $readyr;
+ 
+  my $sout   = IO::Select->new();
+  $sout->add($output_fh);
+  $sout->add($error_fh);
+  $sout->add($status_fh);
+  while ($sout->count() > 0) {
+    ( $readyr, undef, undef ) = 
+      IO::Select::select( $sout, undef, undef);
+    foreach my $descriptor (@$readyr) {
+      if ($descriptor->eof) {
+        $sout->remove($descriptor);
+        close $descriptor;
+        next;
+      }
+      if ( $descriptor == $output_fh ) {
+        $stdout .= <$output_fh>;
+        next;
+      }
+      if ( $descriptor == $status_fh ) {
+        $status .= <$descriptor>;
+        next;
+      }
+      if ( $descriptor == $error_fh ) {
+        $stderr .= <$descriptor>;
+        next;
+      }
+    }
+  }
+  waitpid $pid, 0;        # clean up the finished GnuPG process
+  return ( $stdout, $stderr, $status );
+}
+
 
 =head3 verify_messages
 
@@ -125,15 +230,18 @@ sub verify_messages {
   my $pubring     = $Config{'PUB_Keyring'}
     if defined $Config{'PUB_Keyring'};
 
-  my $replaydb    = $Config{"Replay_DB"};
-  my $sig_suffix  = $Config{"Sig_Suffix"};
+  my $replaydb          = $Config{"Replay_DB"};
+  my $sig_suffix        = $Config{"Sig_Suffix"};
+  my $encrypted_suffix  = $Config{"Encrypted_Suffix"};
 
 
 
   opendir(BODY, $bodydir) || die "can't opendir $bodydir: $!";
-  my @messages = grep { m/${msg_preffix}\d+\.${body_suffix}$/ }  readdir(BODY);
+  my @files     = grep { -f "$bodydir/$_" }  readdir(BODY);
+  my @messages  = grep { m/${msg_preffix}\d+\.${body_suffix}$/ }       @files;
+  my @encrypted = grep { m/${msg_preffix}\d+\.${encrypted_suffix}$/ }  @files;
   closedir(BODY);
-  my $msg         ;
+  my $msg       ;
 
   if ($force && -e $replaydb) {
     unlink $replaydb;
@@ -157,62 +265,37 @@ sub verify_messages {
                -e "$nackdir/$msg_base.$msg_suffix") ;
     }
 
-    my ( $input,   $output, $error, $status_fh )
-      = ( IO::Handle->new(),
-          IO::Handle->new(),
-          IO::Handle->new(),
-          IO::Handle->new()
-        );
-    my $handles = GnuPG::Handles->new( stdin      => $input,
-                                       stdout     => $output,
-                                       stderr     => $error,
-                                       status     => $status_fh,
-                                     );
 
-    my $gnupg = GnuPG::Interface->new();
-
-    my @gpg_args = ("--no-default-keyring", "--always-trust");
+    my @gpg_args = ("--always-trust");
     push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
     push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
 
-    $gnupg->options->hash_init( 'no_options' => 1,
-                                'armor'   => 1,
-                                'homedir' => $topdir,
-                                'meta_interactive' => 0,
-                                'rfc1991' => 1,
-                                'extra_args' => [ @gpg_args ]
-                              );
-    my $pid;
+    my $command_args;
 
     if (-r "$bodydir/$msg_sig") {
-      $pid = $gnupg->verify( handles => $handles,
-                             command_args => [ "--verify",
-                                               "$bodydir/$msg_sig",
-                                               "$bodydir/$msg",
-                                             ]);
+      $command_args = [ "--verify",
+                        "$bodydir/$msg_sig",
+                        "$bodydir/$msg",
+                      ];
     } else {
-      $pid = $gnupg->verify( handles => $handles,
-                             command_args => [ "--verify",
-                                               "$bodydir/$msg"]);
+      $command_args = [ "--verify", "$bodydir/$msg"];
     }
 
-    # this closes the communication channel,
-    # indicating we are done
-    close $input;
-
+    my ( $stdout, $stderr, $status ) = ("", "", "");
+    ($stdout, $stderr, $status) =
+      invoke_gpg(
+                 'Configuration' => $dvt,
+                 'GnuPG Args' => \@gpg_args,
+                 'GnuPG Cmd'  => 'Verify',
+                 'Command Args' => $command_args
+                );
     # now we read the output
-    my @output = <$output>;     # reading the output
-    my @result = <$error>;      # reading the error
-    my @status = <$status_fh>;  # read the status info
+    my @output = split /\n/, $stdout; # reading the output
+    my @result = split /\n/, $stderr; # reading the error
+    my @status = split /\n/, $status; # read the status info
 
-    # clean up...
-    close $output;
-    close $error;
-    close $status_fh;
-
-    waitpid $pid, 0;            # clean up the finished GnuPG process
     my $text;
-    $dvt->log_message($msg . ".good", join('', @status));
+    $dvt->log_message($msg . ".good", $status);
     if (grep {m/GOODSIG/} @status) {
       my $fingerprint;
       my $date;
@@ -283,56 +366,31 @@ sub verify_messages {
       if (-r "$bodydir/$msg.crlf") {
         # So it exists. Let us see if the dig was made over lines that
         # end in \bn, rather than \r\n as it should be.
-        my ( $new_input,   $new_output, $new_error, $new_status_fh )
-          = ( IO::Handle->new(),
-              IO::Handle->new(),
-              IO::Handle->new(),
-              IO::Handle->new()
-            );
-        my $new_handles = GnuPG::Handles->new( stdin      => $input,
-                                               stdout     => $output,
-                                               stderr     => $error,
-                                               status     => $status_fh,
-                                             );
+        my $command_args;
 
-        my $new_gnupg = GnuPG::Interface->new();
-
-
-        $new_gnupg->options->hash_init( 'no_options' => 1,
-                                        'armor'   => 1,
-                                        'homedir' => $topdir,
-                                        'meta_interactive' => 0,
-                                        'rfc1991' => 1,
-                                        'extra_args' => [ @gpg_args ]
-                                      );
         if (-r "$bodydir/$msg_sig") {
-          $pid = $new_gnupg->verify( handles => $new_handles,
-                                     command_args => [ "--verify",
-                                                       "$bodydir/$msg_sig",
-                                                       "$bodydir/$msg.crlf",
-                                                     ]);
+          $command_args = [ "--verify",
+                        "$bodydir/$msg_sig",
+                        "$bodydir/$msg.crlf",
+                      ];
         } else {
-          $pid = $new_gnupg->verify( handles => $new_handles,
-                                     command_args => [ "--verify",
-                                                       "$bodydir/$msg.crlf"]);
+          $command_args = [ "--verify", "$bodydir/$msg.crlf"];
         }
 
-        # this closes the communication channel,
-        # indicating we are done
-        close $new_input;
-
+        my ( $stdout, $stderr, $status ) = ("", "", "");
+        ($stdout, $stderr, $status) =
+          invoke_gpg(
+                     'Configuration' => $dvt,
+                     'GnuPG Args' => \@gpg_args,
+                     'GnuPG Cmd'  => 'Verify',
+                     'Command Args' => $command_args
+                    );
         # now we read the output
-        @output = <$new_output>; # reading the output
-        @result = <$new_error>;  # reading the error
-        @status = <$new_status_fh>; # read the status info
+        my @output = split /\n/, $stdout; # reading the output
+        my @result = split /\n/, $stderr; # reading the error
+        my @status = split /\n/, $status; # read the status info
 
-        # clean up...
-        close $new_output;
-        close $new_error;
-        close $new_status_fh;
-
-        waitpid $pid, 0;        # clean up the finished GnuPG process
-        $dvt->log_message($msg . ".good", join('', @status));
+        $dvt->log_message($msg . ".good", $status);
         if (grep {m/GOODSIG/} @status) {
           my $fingerprint;
           my $date;
@@ -401,6 +459,131 @@ sub verify_messages {
       close NACK;
       $dvt->log_message($msg, $text);
     }
+  }
+  foreach $msg (sort @encrypted) {
+    my $msg_base = $msg;
+    $msg_base =~ s/\.$encrypted_suffix$//o;
+    if ($force ) {
+      unlink "$checkdir/$msg_base.$msg_suffix" if
+        -e "$checkdir/$msg_base.$msg_suffix";
+      unlink "$bodydir/$msg_base.$body_suffix" if
+        -e "$bodydir/$msg_base.$body_suffix";
+    }
+    else {
+      next if (-e "$checkdir/$msg_base.$msg_suffix" ||
+               -e "$nackdir/$msg_base.$msg_suffix"  ||
+               -e "$bodydir/$msg_base.$body_suffix" ) ;
+    }
+    my @gpg_args = ("--always-trust");
+    push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
+    push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
+
+    my ( $stdout, $stderr, $status ) = ("", "", "");
+    ($stdout, $stderr, $status) =
+      invoke_gpg(
+                 'Configuration' => $dvt,
+                 'PassPhrase'    => "$Config{Pass_Word}",
+                 'GnuPG Args' => \@gpg_args,
+                 'GnuPG Cmd'  => 'Decrypt',
+                 'Command Args' => [ "--output",
+                                     "$bodydir/$msg_base.${body_suffix}",
+                                     "--decrypt",
+                                     "$bodydir/$msg"
+                                   ]
+                );
+    # now we read the output
+    my @output = split /\n/, $stdout; # reading the output
+    my @result = split /\n/, $stderr; # reading the error
+    my @status = split /\n/, $status; # read the status info
+    #warn "DEBUG:OUT $stdout";
+    #warn "DEBUG:ERR $stderr";
+    #warn "DEBUG:STT $status";
+    my $text;
+    $dvt->log_message($msg . ".good", $status);
+    if (grep {m/DECRYPTION_OKAY/} @status) {
+      my $fingerprint;
+      my $date;
+      my $timestamp;
+      my $radix;
+      my $keyid;
+      my $username;
+      my $subkey;
+      for (@status) {
+        # Newer GPG versions have extended subkey and expiry data
+        if (m/^\s*\[GNUPG:\]\s+VALIDSIG
+            \s+(\S+)            #  <fingerprint in hex>
+            \s+(\S+)            # <sig_creation_date>
+            \s+(\S+)            # <sig-timestamp>
+            \s+\S+              # <expire-timestamp>
+            \s+\S+              # <sig-version>
+            \s+\S+              # <reserved>
+            \s+\S+              # <pubkey-algo>
+            \s+\S+              # <hash-algo>
+            \s+\S+              # <sig-class>
+            \s+(\S+)            # <primary-key-fpr>
+            \s*$
+            /x) {
+          ($subkey, $date, $timestamp, $fingerprint) = ($1, $2, $3, $4);
+        } elsif (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
+          ($fingerprint, $date, $timestamp) = ($1, $2, $3);
+        } elsif (m/^\s*\[GNUPG:\] SIG_ID\s+(\S+)\s+(\S+)\s+(\S+)/) {
+          ($radix, $date, $timestamp) = ($1, $2, $3);
+        } elsif (m/^\s*\[GNUPG:\] GOODSIG\s+(\S+)\s+(.+)$/) {
+          ($keyid, $username) = ($1, $2);
+        }
+      }
+      $text = join "\n", grep { m/^\s*gpg:/ } @result;
+      $text   .= "Key finger print: ";
+      $text   .= "$fingerprint\n" if $fingerprint;
+      $text   .= "Signature ID: " ;
+      $text   .= "$radix\n" if $radix;
+      if ($radix && defined $Replay{"$radix"}) {
+        open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+          die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+        chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+        print NACK "The signature on the message, though valid, has been\n";
+        print NACK "seen before.  This could be a potential replay attack\n";
+        print NACK "-=" x 35;
+        print NACK "\n";
+        print NACK $text;
+        print NACK "-=" x 35;
+        print NACK "\n\n";
+        print NACK "\tThis ballot is being rejected, please vote again.\n\n";
+        close NACK;
+        $dvt->log_message($msg, $text);
+      } else {
+        $Replay{"$radix"} = $text;
+        open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+        chmod 0660, "$checkdir/$msg_base.$msg_suffix";
+        print GOOD $fingerprint, "\n";
+        close GOOD;
+        open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+        chmod 0660, "$sigdir/$msg_base.$msg_suffix";
+        print SIG $keyid, "\n";
+        close SIG;
+      }
+    } else {
+      # Failure.
+      $text = "There was a problem verifying the signature on the ballot.\n";
+      $text   .=  "-=" x 35;
+      $text   .= "\n";
+      $text   .= join "", grep { m/^\s*gpg:/ } @result;
+      $text   .= "\n";
+      $text   .= join "", @status;
+      $text   .=  "-=" x 35;
+      $text   .= "\n\n";
+
+      open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+        die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+      chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+      print NACK $text;
+      print NACK "\tThis ballot is being rejected.\n\n";
+      close NACK;
+      $dvt->log_message($msg, $text);
+    }
+    
   }
 }
 
