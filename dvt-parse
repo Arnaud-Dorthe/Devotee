@@ -54,7 +54,7 @@ This routine parses the body of the message (created by dvt-mime),
 and creates output that the tally script can handle.
 
 This routine parses the ballot, and writes out a compact, single line
-representation of the choices. It also flags ballots that it can't
+representation of the choices. It also flags ballots that it can not
 parse so that nacks can be sent out to the voter, detailing the
 problems encountered while parsing.
 
@@ -110,21 +110,39 @@ sub parse_messages {
       chomp;
       s/#.*$//o;
       next if /^\s*$/o;
-      next unless /\[\s*(\d+)\s*\]\s*Choice\s+(\d+):\s*(.*)$/;
+      next unless /\[\s*(\d+)\s*\]\s*(Choice\s+(\d+):\s*(.*))$/;
 
       my $rank = $1;
-      my $candidate = $2;
+      my $option = $2;
+      my $candidate = $3;
+
+      my $config_option = $Config{"Option_" . $candidate};
+      # remove leading and trailing spaces
+      $config_option =~ s/\s+$//;
+      $config_option =~ s/^\s+//;
+      #  Checking the whole damned line was creating too many false positives
+      # Check the first word for each line in the ballot, and hope
+      # ballots are going to be sufficiently different
+      $config_option =~ s/^(\S+).*$/$1/;
+      my $config_patt = "\Q$config_option\E";
+      if ($option !~ m/$config_patt/) {
+        $valid--;
+        $valid--;
+        #warn "DEBUG: ballot error!$msg \nmismatch:\n $option\n $config_option\n";
+        $text .= "\nmismatch:\n $option\n $config_option\n";
+      }
+
 
       if ($rank < 1 || $rank > $maxchoices) {
-	$text .= "\n$_\n";
-	$text .= "Rank has to be at least 1 [$rank]]\n" if $rank < 1;
-	$text .= "Rank has to be less than the number of candidate\n"
-	  if $rank > $maxchoices;
-	$text .= "The number of candidates =  $maxchoices. \n"
-	  if $rank > $maxchoices;
-	$text .= "Your choice [$rank]\n"   if $rank > $maxchoices;
-	$valid = -10 * $maxchoices;
-	next;
+        $text .= "\n$_\n";
+        $text .= "Rank has to be at least 1 [$rank]]\n" if $rank < 1;
+       $text .= "Rank has to be less than the number of candidate\n"
+         if $rank > $maxchoices;
+        $text .= "The number of candidates =  $maxchoices. \n"
+          if $rank > $maxchoices;
+        $text .= "Your choice [$rank]\n"   if $rank > $maxchoices;
+        $valid = -10 * $maxchoices;
+        next;
       }
       if ($candidate < 1 || $candidate > $maxchoices) {
 	$text .= "\n$_\n";

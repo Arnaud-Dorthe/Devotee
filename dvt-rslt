@@ -116,22 +116,22 @@ sub winner {
     my $vote = $1;
     my $voter = $2;
 
+    my @rank = unpack "a" x $max_choices, $vote;
     foreach my $i (0..($max_choices - 1)) {
       foreach my $j (($i + 1)..($max_choices - 1)) {
-	my @rank = unpack "a" x $max_choices, $vote;
-	if ($rank[$i] eq '-' && $rank[$j] eq '-') {
-	  next;			# Both unranked
-	} elsif ($rank[$i] eq '-' && $rank[$j] ne '-') {
-	  $Beat_Matrix[$j][$i]++;
-	} elsif ($rank[$i] ne '-' && $rank[$j] eq '-') {
-	  $Beat_Matrix[$i][$j]++;
-	} elsif ($rank[$i] < $rank[$j]) {
-	  $Beat_Matrix[$i][$j]++;
-	} elsif ($rank[$i] > $rank[$j]) {
-	  $Beat_Matrix[$j][$i]++;
-	} else {
-	  next;			# Equally ranked
-	}
+        if ($rank[$i] eq '-' && $rank[$j] eq '-') {
+          next;                 # Both unranked
+        } elsif ($rank[$i] eq '-' && $rank[$j] ne '-') {
+          $Beat_Matrix[$j][$i]++;
+        } elsif ($rank[$i] ne '-' && $rank[$j] eq '-') {
+          $Beat_Matrix[$i][$j]++;
+        } elsif ($rank[$i] < $rank[$j]) {
+          $Beat_Matrix[$i][$j]++;
+        } elsif ($rank[$i] > $rank[$j]) {
+          $Beat_Matrix[$j][$i]++;
+        } else {
+          next;                 # Equally ranked
+        }
       }
     }
   }
@@ -158,10 +158,9 @@ EOF
     printf RESULTS "Option %d  ", $row + 1;
     for my $col (0..($max_choices - 1)) {
       if ($row == $col) {
-	 printf RESULTS "      ", $Beat_Matrix[$row][$col];
-      }
-      else {
-	printf RESULTS " % 4d ", $Beat_Matrix[$row][$col];
+        printf RESULTS "      ", $Beat_Matrix[$row][$col];
+      } else {
+        printf RESULTS " % 4d ", $Beat_Matrix[$row][$col];
       }
     }
     print RESULTS "\n";
@@ -185,11 +184,10 @@ EOM
     if ($Beat_Matrix[$i][$max_choices - 1] < $K) {
       $Drop{$i}++;
       print RESULTS "Dropping Option", $i + 1, " \"", $Config{"Option_" . ($i + 1)}, 
-	"\" because of Quorum\n";
-    }
-    else {
+        "\" because of Quorum\n";
+    } else {
       print RESULTS "Option ", $i + 1, 
-	" Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K\n";
+        " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K\n";
     }
   }
 
@@ -208,19 +206,20 @@ EOM
     my $ratio = $Beat_Matrix[$i][$max_choices - 1] /
       $Beat_Matrix[$max_choices - 1][$i];
     if ($ratio <= $Config{"Majority_" . ($i + 1)}) {
+      # If the next line is commented out, we get a more verbose set of results
+      $Drop{$i}++;
       print RESULTS "Dropping Option ", $i + 1, " because of Majority.";
       printf RESULTS " %6.3f (%d/%d) <= %d\n",
-	$ratio, $Beat_Matrix[$i][$max_choices - 1],
-	  $Beat_Matrix[$max_choices - 1][$i],
-	    $Config{"Majority_" . ($i + 1)};
-    }
-    else {
+        $ratio, $Beat_Matrix[$i][$max_choices - 1],
+          $Beat_Matrix[$max_choices - 1][$i],
+            $Config{"Majority_" . ($i + 1)};
+    } else {
       print RESULTS "Option ", $i + 1, " passes Majority.";
       print RESULTS "             ";
       printf RESULTS " %6.3f (%d/%d) > %d\n",
-	$ratio, $Beat_Matrix[$i][$max_choices - 1],
-	  $Beat_Matrix[$max_choices - 1][$i],
-	    $Config{"Majority_" . ($i + 1)};
+        $ratio, $Beat_Matrix[$i][$max_choices - 1],
+          $Beat_Matrix[$max_choices - 1][$i],
+            $Config{"Majority_" . ($i + 1)};
     }
   }
   print RESULTS "\n\n";
@@ -233,17 +232,22 @@ EOM
     foreach my $j (($i + 1)..($max_choices - 1)) {
       next if $Drop{$j};
       if ($Beat_Matrix[$i][$j] > $Beat_Matrix[$j][$i]) {
-	# i defeats j
-	$Defeats{$i}{$j} = $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i];
-	print RESULTS "  Option ", $i + 1, " defeats Option ",
-	  $j + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$i][$j],
-			 $Beat_Matrix[$j][$i], $Defeats{$i}{$j});
+        # i defeats j
+        $Defeats{$i}{$j}{for}     = $Beat_Matrix[$i][$j];
+        $Defeats{$i}{$j}{against} = $Beat_Matrix[$j][$i];
+
+        print RESULTS "  Option ", $i + 1, " defeats Option ",
+          $j + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$i][$j],
+                          $Beat_Matrix[$j][$i], 
+                          $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
       } elsif ($Beat_Matrix[$i][$j] < $Beat_Matrix[$j][$i]) {
-	# j defeats i
-	$Defeats{$j}{$i} = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
-	print RESULTS "  Option ", $j + 1, " defeats Option ",
-	  $i + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$j][$i],
-			 $Beat_Matrix[$i][$j], $Defeats{$j}{$i});
+        # j defeats i
+        $Defeats{$j}{$i}{for}     = $Beat_Matrix[$j][$i];
+        $Defeats{$j}{$i}{against} = $Beat_Matrix[$i][$j];
+        print RESULTS "  Option ", $j + 1, " defeats Option ",
+          $i + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$j][$i],
+                          $Beat_Matrix[$i][$j], 
+                          $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
       }
     }
   }
@@ -261,8 +265,9 @@ EOM
     foreach my $i (0..($max_choices - 1)) {
       next if $Drop{$i};
       foreach my $j (0..($max_choices - 1)) {
-	next if $Drop{$j};
-	$BeatPath{$i}{$j} = $Defeats{$i}{$j};
+        next if $Drop{$j};
+        $BeatPath{$i}{$j}{for}     = $Defeats{$i}{$j}{for};
+        $BeatPath{$i}{$j}{against} = $Defeats{$i}{$j}{against};
       }
     }
 
@@ -272,50 +277,69 @@ EOM
     while (!$done) {
       $done = 1;
       foreach my $i (0..($max_choices - 1)) {
-	next if $Drop{$i};
-	foreach my $j (0..($max_choices - 1)) {
-	  next if $Drop{$j};
-	  next if $i == $j;
-	  foreach my $k (0..($max_choices - 1)) {
-	    next if $Drop{$k};
-	    next if $i == $k;
-	    next if $k == $j;
-	    if (!$BeatPath{$i}{$j}) {
-	      if ($BeatPath{$i}{$k} && $BeatPath{$k}{$j} ) {
-		$BeatPath{$i}{$j} = ($BeatPath{$i}{$k} < $BeatPath{$k}{$j}) ?
-		  $BeatPath{$i}{$k}:$BeatPath{$k}{$j};
-		$done = 0;
-	      }
-	    }
-	  }
-	}
+        next if $Drop{$i};
+        foreach my $j (0..($max_choices - 1)) {
+          next if $Drop{$j};
+          next if $i == $j;
+          foreach my $k (0..($max_choices - 1)) {
+            next if $Drop{$k};
+            next if $i == $k;
+            next if $k == $j;
+            if (!$BeatPath{$i}{$j}{for}) {
+              if ($BeatPath{$i}{$k}{for} && $BeatPath{$k}{$j}{for} ) {
+                if ($BeatPath{$i}{$k}{for} == $BeatPath{$k}{$j}{for}) {
+                  $BeatPath{$i}{$j}{for} = ($BeatPath{$i}{$k}{against} > 
+                                       $BeatPath{$k}{$j}{against}) ?
+                                         $BeatPath{$i}{$k}{for}:$BeatPath{$k}{$j}{for};
+                  $BeatPath{$i}{$j}{against} = ($BeatPath{$i}{$k}{against} > 
+                                                $BeatPath{$k}{$j}{against}) ?
+                                                  $BeatPath{$i}{$k}{against} :
+                                                    $BeatPath{$k}{$j}{against};
+                } else {
+                  $BeatPath{$i}{$j}{for} = ($BeatPath{$i}{$k}{for} < 
+                                            $BeatPath{$k}{$j}{for}) ?
+                                              $BeatPath{$i}{$k}{for} : 
+                                                $BeatPath{$k}{$j}{for};
+                  $BeatPath{$i}{$j}{against} = ($BeatPath{$i}{$k}{for} < 
+                                                $BeatPath{$k}{$j}{for}) ?
+                                                  $BeatPath{$i}{$k}{against} :
+                                                    $BeatPath{$k}{$j}{against};
+                }
+                $done = 0;
+              }
+            }
+          }
+        }
       }
     }
 
 
     # We construct the Schwartz set from the set of transitive defeats.
     foreach my $i (0..($max_choices - 1)) {
-      if ($Drop{$i}) { $Schwartz[$i] = 0; }
-      else           { $Schwartz[$i] = 1; }
+      if ($Drop{$i}) {
+        $Schwartz[$i] = 0;
+      } else {
+        $Schwartz[$i] = 1;
+      }
     }
 
     foreach my $i (0..($max_choices - 1)) {
       foreach my $j (0..($max_choices - 1)) {
-	next if $i == $j;
-	# An option A is in the Schwartz set if for all options B, either
-	# A transitively defeats B, or B does not transitively defeat A
-	# Here, we throw out any option $i that does not meet the above
-	# criteria.
-	if (! ($BeatPath{$i}{$j} || ! $BeatPath{$j}{$i})) {
-	  $Schwartz[$i] = 0;
-	}
+        next if $i == $j;
+        # An option A is in the Schwartz set if for all options B, either
+        # A transitively defeats B, or B does not transitively defeat A
+        # Here, we throw out any option $i that does not meet the above
+        # criteria.
+        if (! ($BeatPath{$i}{$j}{for} || ! $BeatPath{$j}{$i}{for})) {
+          $Schwartz[$i] = 0;
+        }
       }
     }
     print RESULTS "The Schwartz Set contains:\n";
     foreach my $i (0 ..$#Schwartz) {
       next unless $Schwartz[$i];
       print RESULTS "\t Option ", ($i + 1), " \"", 
-	$Config{"Option_" . ($i + 1)}, "\"\n";
+        $Config{"Option_" . ($i + 1)}, "\"\n";
     }
     print RESULTS "\n\n";
 
@@ -337,48 +361,77 @@ EOM
     foreach my $i (0 ..$#Schwartz) {
       next unless $Schwartz[$i];
       foreach my $j (0..$#Schwartz) {
-	next unless $Schwartz[$j];
-	next if $i == $j;
-	if (defined $Defeats{$i}{$j}) {
-	  if (! $weak_count) {
-	    $Weakest{$weak_count}{'Low'}    = $Defeats{$i}{$j};
-	    $Weakest{$weak_count}{'Winner'} = $i;
-	    $Weakest{$weak_count}{'Loser'}  = $j;
-	    $weak_count++;
-	  } elsif ($Weakest{0}{'Low'} > $Defeats{$i}{$j}) {
-	    undef %Weakest;
-	    $weak_count = 0;
-	    $Weakest{$weak_count}{'Low'}    = $Defeats{$i}{$j};
-	    $Weakest{$weak_count}{'Winner'} = $i;
-	    $Weakest{$weak_count}{'Loser'}  = $j;
-	    $weak_count++;
-	  } elsif ($Weakest{0}{'Low'} == $Defeats{$i}{$j}) {
-	    $Weakest{$weak_count}{'Low'}    = $Defeats{$i}{$j};
-	    $Weakest{$weak_count}{'Winner'} = $i;
-	    $Weakest{$weak_count}{'Loser'}  = $j;
-	    $weak_count++;
-	  }
-	}
-	if (defined $Defeats{$j}{$i}) {
-	  if (! $weak_count) {
-	    $Weakest{$weak_count}{'Low'}    = $Defeats{$j}{$i};
-	    $Weakest{$weak_count}{'Winner'} = $j;
-	    $Weakest{$weak_count}{'Loser'}  = $i;
-	    $weak_count++;
-	  } elsif ($Weakest{'Low'} > $Defeats{$j}{$i}) {
-	    undef %Weakest;
-	    $weak_count = 0;
-	    $Weakest{$weak_count}{'Low'}    = $Defeats{$j}{$i};
-	    $Weakest{$weak_count}{'Winner'} = $j;
-	    $Weakest{$weak_count}{'Loser'}  = $i;
-	    $weak_count++;
-	  } elsif ($Weakest{'Low'} == $Defeats{$j}{$i}) {
-	    $Weakest{$weak_count}{'Low'}    = $Defeats{$j}{$i};
-	    $Weakest{$weak_count}{'Winner'} = $j;
-	    $Weakest{$weak_count}{'Loser'}  = $i;
-	    $weak_count++;
-	  }
-	}
+        next unless $Schwartz[$j];
+        next if $i == $j;
+        if (defined $Defeats{$i}{$j}{'for'}) {
+          if (! $weak_count) {
+            $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{for};
+            $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{against};
+            $Weakest{$weak_count}{'Winner'}  = $i;
+            $Weakest{$weak_count}{'Loser'}   = $j;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} > $Defeats{$i}{$j}{for}) {
+            undef %Weakest;
+            $weak_count = 0;
+            $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{for};
+            $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{against};
+            $Weakest{$weak_count}{'Winner'}  = $i;
+            $Weakest{$weak_count}{'Loser'}   = $j;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} == $Defeats{$i}{$j}{'for'}) {
+            if ($Weakest{0}{'against'} < $Defeats{$i}{$j}{against}) {
+              undef %Weakest;
+              $weak_count = 0;
+              $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{for};
+              $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{against};
+              $Weakest{$weak_count}{'Winner'}  = $i;
+              $Weakest{$weak_count}{'Loser'}   = $j;
+              $weak_count++;
+            }
+            else {
+              $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{'against'};
+              $Weakest{$weak_count}{'Winner'}  = $i;
+              $Weakest{$weak_count}{'Loser'}   = $j;
+              $weak_count++;
+            }
+          }
+        }
+        if (defined $Defeats{$j}{$i}{'for'}) {
+          if (! $weak_count) {
+            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+            $Weakest{$weak_count}{'Winner'}  = $j;
+            $Weakest{$weak_count}{'Loser'}   = $i;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} > $Defeats{$j}{$i}{'for'}) {
+            undef %Weakest;
+            $weak_count = 0;
+            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+            $Weakest{$weak_count}{'Winner'}  = $j;
+            $Weakest{$weak_count}{'Loser'}   = $i;
+            $weak_count++;
+          } elsif ($Weakest{0}{'Low'} == $Defeats{$j}{$i}{'for'}) {
+            if ($Weakest{0}{'against'} < $Defeats{$j}{$i}{'against'}) {
+              undef %Weakest;
+              $weak_count = 0;
+              $Weakest{$weak_count}{'for'}    = $Defeats{$j}{$i}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+              $Weakest{$weak_count}{'Winner'} = $j;
+              $Weakest{$weak_count}{'Loser'}  = $i;
+              $weak_count++;
+            }
+            else {
+              $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+              $Weakest{$weak_count}{'Winner'}  = $j;
+              $Weakest{$weak_count}{'Loser'}   = $i;
+              $weak_count++;
+            }
+            
+          }
+        }
       }
     }
     if (! $weak_count) {
@@ -386,26 +439,25 @@ EOM
       print RESULTS "-=" x 35, "\n\n";
       print RESULTS "The winners are:\n";
       foreach my $i (0 ..$#Schwartz) {
-	next unless $Schwartz[$i];
-	print RESULTS "\t Option ", ($i + 1), " \"", 
-	  $Config{"Option_" . ($i + 1)}, "\"\n";
+        next unless $Schwartz[$i];
+        print RESULTS "\t Option ", ($i + 1), " \"", 
+          $Config{"Option_" . ($i + 1)}, "\"\n";
       }
       print RESULTS "\n", "-=" x 35, "\n";
       print RESULTS "-=" x 35, "\n\n";
       last;
-    } 
-    else {
+    } else {
       print RESULTS "Weakest Defeat(s): \n";
       foreach my $k (sort keys %Weakest) {
-	print RESULTS "\tOption ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
-	  $Weakest{$k}{'Loser'} + 1, " by ",
-	    " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
-	      "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
-		"= $Weakest{$k}{'Low'} votes\n";
+        print RESULTS "\tOption ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
+          $Weakest{$k}{'Loser'} + 1, " by ",
+            " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
+              "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
+                "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'}, " votes\n";
       }
       print RESULTS "Deleting weakest defeat(s)\n\n";
       foreach my $k (sort keys %Weakest) {
-	delete $Defeats{$Weakest{$k}{'Winner'}}{$Weakest{$k}{'Loser'}};
+        delete $Defeats{$Weakest{$k}{'Winner'}}{$Weakest{$k}{'Loser'}};
       }
     }
   }

@@ -33,7 +33,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 use MIME::Entity;
@@ -121,7 +121,7 @@ sub demime_messages {
 
   opendir(WORK, $workdir) || die "can't opendir $workdir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-			  -f  "$workdir/$_" }   readdir(WORK);
+                          -f  "$workdir/$_" }   readdir(WORK);
   closedir(WORK);
 
   my $msg;
@@ -156,12 +156,12 @@ sub demime_messages {
 
     # If there's a MIM signature, try to handle it.
     if ( ($head->mime_type =~ /multipart\/signed/i) and
-	 ( $entity->parts(1)->head->mime_type =~
-	   /application\/pgp-signature/i) ) {
+         ( $entity->parts(1)->head->mime_type =~
+           /application\/pgp-signature/i) ) {
       my $ret = open(SIG, ">$bodydir/$msg_sig");
       if (!$ret) {
-	$dvt->log_message($msg, "Could not create sig file $msg_sig");
-	next;
+        $dvt->log_message($msg, "Could not create sig file $msg_sig");
+        next;
       }
       chmod 0660, "$bodydir/$msg_sig";
       $entity->parts(1)->print_body(\*SIG);
@@ -170,38 +170,47 @@ sub demime_messages {
 
       my $data = $entity->parts(0)->as_string;
       if ($data =~ m/[^\r]\n/o) {
-	# Bah. Non RFC compliant line ending. Stupid MIME::Parser
-	# Save anyway since some broken MUA's depend on this
-	# This should go away as we fix the mailers
-	$ret = open(DATA, ">$bodydir/$msg_body.crlf");
-	if (!$ret) {
-	  $dvt->log_message($msg, "Could not create sig file $msg_body");
-	  next;
-	}
-	chmod 0660, "$bodydir/$msg_body";
-	print DATA $data;
-	close(DATA);
-	# Fix the data for the real file
-	$data =~ s/\r?\n/\r\n/g;
+        # Bah. Non RFC compliant line ending. Stupid MIME::Parser
+        # Save anyway since some broken MUA's depend on this
+        # This should go away as we fix the mailers
+        $ret = open(DATA, ">$bodydir/$msg_body.crlf");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create sig file $msg_body");
+          next;
+        }
+        chmod 0660, "$bodydir/$msg_body";
+        print DATA $data;
+        close(DATA);
+        # Fix the data for the real file
+        $data =~ s/\r?\n/\r\n/g;
       }
       # Save data for good MUA's
       $ret = open(DATA, ">$bodydir/$msg_body");
       if (!$ret) {
-	$dvt->log_message($msg, "Could not create sig file $msg_body");
-	next;
+        $dvt->log_message($msg, "Could not create sig file $msg_body");
+        next;
       }
       chmod 0660, "$bodydir/$msg_body";
       print DATA $data;
       close(DATA);
-    }
-    else {
+    } else {
       my $ret = open(DATA, ">$bodydir/$msg_body");
       if (!$ret) {
-	$dvt->log_message($msg, "Could not create sig file $msg_body");
-	next;
+        $dvt->log_message($msg, "Could not create sig file $msg_body");
+        next;
       }
       chmod 0660, "$bodydir/$msg_body";
-      print DATA $entity->body_as_string();
+      my $msg_body = $entity->body_as_string();
+      #  Massage body here. 
+      #
+      #  We eliminate every scrap of the message
+      #  outside the message body or signature so that no one may
+      #  attach a bogus ballot to a signed message by some developer.
+      #
+      $msg_body =^ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
+      $msg_body =^ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
+
+      print DATA $msg_body;
       close(DATA);
     }
   }
