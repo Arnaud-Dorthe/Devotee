@@ -233,7 +233,7 @@ sub do_quorum {
   print QUORUM " Q ( sqrt(#devel) / 2 ) = ",   sqrt($count)/2, "\n";
   print QUORUM " K min(5, 3 x Q )       = ", 
     (5 < 3*sqrt($count)/2) ? 5 : 3*sqrt($count)/2, "\n";
-  print QUORUM " Quorum  (3 x Q )       = ", *sqrt($count)/2, "\n";
+  print QUORUM " Quorum  (3 x Q )       = ", 3*sqrt($count)/2, "\n";
   close QUORUM;
 }
 

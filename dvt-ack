@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:20:34 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 72
+# Last Modified On : Fri Mar 12 04:52:07 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 76
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -185,19 +185,32 @@ sub send_mail {
     $dvt->log_message($msg, "Error encrypting message.\n@errors\n@status\n");
     return 0;
   }
+
+  # RFC 3156    
+  #  4.  OpenPGP encrypted data
+
   my $text=<<EOH;
 From: secretary\@debian.org
 To: $params{'Destination'}
 Reply-To: secretary\@debian.org
 Bcc: secretary\@debian.org
 Subject: $params{'Subject'}
+Mime-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted";
+        boundary=xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx
 
-Hi,
+
+--xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx
+Content-Type: application/pgp-encrypted
+
+Version: 1
+
+--xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx
+Content-Type: application/octet-stream
 
 $body
 
--- 
-Debian Project secretary (secretary\@debian.org)
+--xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx--
 
 EOH
   ;
