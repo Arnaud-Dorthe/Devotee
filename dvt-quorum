@@ -5,9 +5,9 @@
 # Created On       : Thu Mar 13 18:07:30 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 01:16:04 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 114
+# Last Modified On : Tue Mar  9 13:18:09 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 117
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -131,7 +131,8 @@ sub do_quorum {
 
   my $gnupg = GnuPG::Interface->new();
 
-  my @gpg_args = ("--no-default-keyring", "--always-trust");
+  my @gpg_args = ("--no-default-keyring", "--always-trust",
+		  "--no-auto-check-trustdb");
   push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
   push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
 
@@ -229,8 +230,10 @@ sub do_quorum {
   open(QUORUM, ">$quorum_file") ||  die "Could not open $quorum_file:$!";
 
   print QUORUM " Current Developer Count = $count\n";
-  print QUORUM " Q ( sqrt(#devel) / 2 )  = ",   sqrt($count)/2, "\n";
-  print QUORUM " K ( 3 x Q )             = ", 3*sqrt($count)/2, "\n";
+  print QUORUM " Q ( sqrt(#devel) / 2 ) = ",   sqrt($count)/2, "\n";
+  print QUORUM " K min(5, 3 x Q )       = ", 
+    (5 < 3*sqrt($count)/2) ? 5 : 3*sqrt($count)/2, "\n";
+  print QUORUM " Quorum  (3 x Q )       = ", *sqrt($count)/2, "\n";
   close QUORUM;
 }
 
