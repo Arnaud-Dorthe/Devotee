@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:23:11 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 82
+# Last Modified On : Tue Mar  9 13:21:42 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 83
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -168,10 +168,10 @@ EOF
   print RESULTS <<EOM;
 
 Looking at row 2, column 1, $Config{Option_2}
-received $Beat_Matrix[2][1] votes over $Config{Option_1}
+received $Beat_Matrix[1][0] votes over $Config{Option_1}
 
 Looking at row 1, column 2, $Config{Option_1}
-received 34 $Beat_Matrix[1][2] votes over $Config{Option_2}.
+received 34 $Beat_Matrix[0][1] votes over $Config{Option_2}.
 
 EOM
   ;
@@ -182,7 +182,7 @@ EOM
     if ($Beat_Matrix[$i][$max_choices - 1] < $K) {
       $Drop{$i}++;
       print RESULTS "Dropping Option", $i + 1, " \"", $Config{"Option_" . ($i + 1)}, 
-	"\" because of Quorun\n";
+	"\" because of Quorum\n";
     }
     else {
       print RESULTS "Option ", $i + 1, 
