@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:27:19 2004
+# Last Modified On : Wed Apr  6 02:59:00 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 47
+# Update Count     : 51
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -67,7 +67,7 @@ that belong to administrative roles in Debian (Security Key, for
 instance), which should not have voting privileges.
 
 It is important to add a filter to limit the matches from LDAP, if,
-like Debian's LDAP, the server contains entries for people other than
+like Debians LDAP, the server contains entries for people other than
 those enfranchised.
 
 Additionally, this script attempts to be idempotent. It is also
@@ -188,6 +188,22 @@ sub ldap_info {
                           ); };
     if ($@) {
       $dvt->log_message($msg, "Error getting ldap info:$@");
+    }
+    # If searching for the key did not end up creating a record in the
+    # LDAP directory, add an NACk message, so that the voter knows
+    # that the ballot failed due to missing the LDAP check. This is due
+    # to the fac that this message could come from a defunct account with
+    # a key in the keyring, but not in LDAP.
+    if (! -e "$ldapdir/$msg") {
+      open(NACK, ">>$nackdir/$msg") ||
+        die "Could not open $nackdir/$msg:$!";
+      print NACK "There was an error retrieving information from LDAP for the\n";
+      print NACK "finderprint $filter.\n";
+      print NACK "There is no way of knowing if this is a defunct account, so\n";
+      print NACK "I am not recording this vote.\n";
+      print NACK "\tThis ballot is being rejected, please vote again.\n\n";
+      close NACK;
+      $dvt->log_message($msg, "Error getting ldap info (no such record)");
     }
   }
   $ldap->unbind ();

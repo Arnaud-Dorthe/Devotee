@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 14:28:14 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Apr  4 22:09:13 2005
+# Last Modified On : Wed Apr  6 00:33:48 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 34
+# Update Count     : 35
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -83,6 +83,7 @@ sub parse_messages {
   my $bodydir     = $Config{'Body_Dir'};
   my $tallydir    = $Config{'Tally_Dir'};
   my $nackdir     = $Config{'Nack_Dir'};
+  my $ldapdir           = $Config{"LDAP_Dir"};
 
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
@@ -98,6 +99,7 @@ sub parse_messages {
   closedir(BODY);
   foreach my $msg (@messages ) {
     next if !$force && (-e "$tallydir/$msg" || -e "$nackdir/$msg");
+    next         unless -e "$ldapdir/$msg";
     my $ret = open (MESSAGE, "$bodydir/$msg");
     if (!$ret) {
       $dvt->log_message($msg, "Could not open extractred message:$!");
