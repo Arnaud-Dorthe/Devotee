@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Apr 15 01:23:31 2003
+# Last Modified On : Tue Oct 21 17:30:23 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 41
+# Update Count     : 44
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -29,7 +29,8 @@ use vars qw($msg $ldapdir);
 =head1 SYNOPSIS
 
 This routine is designed to query the debian ldap server to determine
-the unique uid for every debian developer. 
+the unique uid for every debian developer.  This is the fifth phase in
+bellot processing.
 
 =cut
 
@@ -37,7 +38,19 @@ the unique uid for every debian developer.
 
 The unique uid that is determined from LDAP, using the key fingerprint
 as a filter, shall be used as primary index, allowing for developers
-with multiple keys to still be able to replace their vote. 
+with multiple keys to still be able to replace their vote. The LDAP
+check also acts as an additrional check; there are keys in the keyring
+that brlong to administrative roles in Debian (Security Key, for
+instance), which should not have voting proviledges.
+
+It is important to add a filter to limit the matches from LDAP, if,
+like Debian's LDAP, the server caontains entries for people other than
+those enfranchised.
+
+Additionally, this script attempts to be idepotent. It is also
+incremental, unless a force option is given, in which case it
+re-queries the LDAP DB.
+
 
 =cut
 
@@ -186,3 +199,49 @@ sub main {
 &main;
 
 exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

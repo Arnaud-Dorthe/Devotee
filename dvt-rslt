@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Oct 19 18:15:14 2003
+# Last Modified On : Fri Oct 31 12:18:34 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 66
+# Update Count     : 72
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -45,7 +45,16 @@ dvt-rslt - Given a tally sheet, calculate the Condorcet winner
 =head1 SYNOPSIS
 
 
-TBD
+This routine is the heart of the voting system. It takes into account
+quorum requirements (reading the output file produced by dvt-quorum),
+ans also the configured majority requirements, if any.
+
+It reads the tally sheet prodiced by dvt-tally, and creates the
+initial beat matrix; and the pairwise defeat list, and finally the
+schwartz set. If there are defeats between the members of the schwartz
+set, it drops the weakest defeat and repeats, until there is a winner.
+
+It puts the results in the configured output file.
 
 =cut
 
@@ -71,6 +80,7 @@ sub winner {
 
   my $K = 5;
 
+  # FIXME: this really should be optional
   open(QUORUM, "$quorum_file") ||  die "Could not open $quorum_file:$!";
   while (<QUORUM>) {
     next unless m/\s*K[^=]+=\s*(\S+)/;
@@ -118,6 +128,27 @@ sub winner {
       }
     }
   }
+
+
+  print RESULTS " " x10;
+  for my $col (0..($max_choices - 1)) {
+    printf RESULTS " % 4d ", $col + 1;
+  }
+  print RESULTS "\n";
+  print RESULTS " " x10, "  === " x $max_choices, "\n";
+  for my $row (0..($max_choices - 1)) {
+    printf RESULTS "Option %d  ", $row + 1;
+    for my $col (0..($max_choices - 1)) {
+      if ($row == $col) {
+	 printf RESULTS "      ", $Beat_Matrix[$row][$col];
+      }
+      else {
+	printf RESULTS " % 4d ", $Beat_Matrix[$row][$col];
+      }
+    }
+    print RESULTS "\n";
+  }
+  print RESULTS "\n\n";
 
   my %Drop = ();
 
@@ -252,7 +283,8 @@ sub winner {
     print RESULTS "The Schwartz Set contains:\n";
     foreach my $i (0 ..$#Schwartz) {
       next unless $Schwartz[$i];
-      print RESULTS "\t", $Config{"Option_" . ($i + 1)}, "\n";
+      print RESULTS "\t Option ", ($i + 1), " \"", 
+	$Config{"Option_" . ($i + 1)}, "\"\n";
     }
     print RESULTS "\n\n";
 
@@ -324,7 +356,8 @@ sub winner {
       print RESULTS "The winners are:\n";
       foreach my $i (0 ..$#Schwartz) {
 	next unless $Schwartz[$i];
-	print RESULTS "\t", $Config{"Option_" . ($i + 1)}, "\n";
+	print RESULTS "\t Option ", ($i + 1), " \"", 
+	  $Config{"Option_" . ($i + 1)}, "\"\n";
       print RESULTS "\n", "-=" x 35, "\n";
       print RESULTS "-=" x 35, "\n\n";
       }
@@ -365,5 +398,47 @@ sub main {
 exit 0;
 
 
+=head1 CAVEATS
 
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
 

@@ -1,4 +1,36 @@
 #!/bin/sh
+#                               -*- Mode: Sh -*- 
+# dvt-cron --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Mon Oct 20 23:16:09 2003
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Wed Oct 29 15:28:06 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 3
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+# This script is a part of the Devotee package, and is 
+# Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+
 set -e
 
 workdir=/org/vote.debian.org/
@@ -9,7 +41,8 @@ cd $workdir
 
 HTML_DIR=$HOME/public_html
 
-conffile=./data/gr_sec415/devotee.conf
+vote=gr_sec415
+conffile=./data/$vote/devotee.conf
 
 ./bin/dvt-cp       -c $conffile
 echo Copying Done
@@ -51,10 +84,10 @@ echo tallying done
 echo Calculated results
 
 if [ -d $HTML_DIR ]; then
-   cp -f ./data/gr_sec415/voters.txt      $HTML_DIR/gr_sec415_voters.txt;
-   cp -f ./data/gr_sec415/dummy_tally.txt $HTML_DIR/dummy_gr_sec415_tally.txt
+   cp -f ./data/${vote}/voters.txt      $HTML_DIR/${vote}_voters.txt;
+   cp -f ./data/${vote}/dummy_tally.txt $HTML_DIR/dummy_${vote}_tally.txt
 fi
 
 echo cleaning up
-find ./data/gr_sec415/tmp/ -type f -exec rm {} \;
+find ./data/${vote}/tmp/ -type f -exec rm {} \;
 

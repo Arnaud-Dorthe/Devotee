@@ -1,13 +1,13 @@
 #!/usr/bin/perl -w
 #                              -*- Mode: Perl -*-
-# debvote-spool.pl ---
+# dvt-spool.pl ---
 # Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
 # Created On       : Thu Mar  7 14:17:20 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Apr 17 10:49:06 2003
+# Last Modified On : Mon Oct 20 23:25:43 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 27
+# Update Count     : 29
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -23,7 +23,7 @@ use Getopt::Long;
 
 =head1 NAME
 
-debvote-spool - Safely spool incoming data to a spool file
+dvt-spool - Safely spool incoming data to a spool file
 
 =cut
 
@@ -41,7 +41,9 @@ The emphasis here is safety, and alacrity: this routine needs to be
 very light weight, in order to scale to large numbers of votes, and be
 able to safely deliver the contents to the disk even under high loads.
 Due to this extremly simple goal, there are few configurable
-parameters, and even fewer command line options.
+parameters, and even fewer command line options. The resulting files
+shall be marked read only. The file names are chosen to sort
+correctly.
 
 =cut
 
@@ -220,33 +222,49 @@ sub main {
 
 exit 0;
 
-=head1 DIAGNOSTICS
 
-=over 4
-
-
-=back
-
-=head1 BUGS
-
-There are no known bugs so far.
 
 =head1 CAVEATS
 
-This implementation leaves lots of empty lock files lying around. If
-we were to lock a master lock instead, it would reduce the lock files
-to a single file, at the expense of serializing incoming mail.
+This is very inchoate, at the moment, and needs testing.
 
-Additionally, there is no signal handling in this version, since the
-verion of Perl in unstable at the time of writing has random segfaults
-if signal handlers are used.
+=cut
 
-=head1 SEE ALSO
+=head1 BUGS
 
-L<Fcntl> (3pm)
+None Known so far.
+
+=cut
 
 =head1 AUTHOR
 
+Manoj Srivastava <srivasta@debian.org>
+
 =head1 COPYRIGHT AND LICENSE
 
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
 =cut
+
+
+
+1;
+
+__END__
+

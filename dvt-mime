@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Nov 10 00:45:49 2002
+# Last Modified On : Tue Oct 21 01:47:50 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 28
+# Update Count     : 40
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -38,15 +38,22 @@ debvote-mime - From the work dir, decode and save the bidy of the message
 =head1 SYNOPSIS
 
 This routine is designed to handle various forms of MIME
-encampulation, including PGP?MIME, and create a decoded body text in a
-format that can be easily checked for cryptograhic signatures.
+encampulation, including PGP/MIME, and create a decoded body text in a
+format that can be easily checked for cryptograhic
+signatures. Normally, this is the step after dvt-cp; and the third
+step of ballot processing.
 
 =cut
 
 =head1 DESCRIPTION
 
 The idea here is to be forgiving of MIME errors and be able to present
-as many signed votes toi the signature verifier as possible.
+as many signed votes to the signature verifier as possible.  To
+further this goal, we save the body part of RFC 3156 PGP/MIME encoded
+ballots in two formats: one in CRLF line ending formatm as required by
+the RFC's, and another in simple UNIX line ending format, since some
+MUA's incorrectly calculate the signature over the raw message,
+without converting to CRLF format.
 
 Additionally, this script attempts to be idepotent. It is also
 incremental, unless a force option is given. in which case it
@@ -144,13 +151,31 @@ sub demime_messages {
       $entity->parts(1)->print_body(\*SIG);
       close(SIG);
 
+
+      my $data = $entity->parts(0)->as_string;
+      if ($data =~ m/[^\r]\n/o) {
+	# Bah. Non RFC compliant line ending. Stupid MIME::Parser
+	# Save anyway since some broken MUA's depend on this
+	# This should go away as we fix the mailers
+	$ret = open(DATA, ">$bodydir/$msg_body.crlf");
+	if (!$ret) {
+	  $dvt->log_message($msg, "Could not create sig file $msg_body");
+	  next;
+	}
+	chmod 0660, "$bodydir/$msg_body";
+	print DATA $data;
+	close(DATA);
+	# Fix the data for the real file
+	$data =~ s/\r?\n/\r\n/g;
+      }
+      # Save data for good MUA's
       $ret = open(DATA, ">$bodydir/$msg_body");
       if (!$ret) {
 	$dvt->log_message($msg, "Could not create sig file $msg_body");
 	next;
       }
       chmod 0660, "$bodydir/$msg_body";
-      print DATA $entity->parts(0)->as_string;
+      print DATA $data;
       close(DATA);
     }
     else {
@@ -183,3 +208,48 @@ sub main {
 &main;
 
 exit 0;
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

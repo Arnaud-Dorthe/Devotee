@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Oct 19 17:56:02 2003
+# Last Modified On : Mon Oct 20 23:11:47 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 239
+# Update Count     : 242
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -272,6 +272,63 @@ Specify the LDAP host to contact to validate votes
 =over 2
 
 Specify the base for the LDAP query
+
+=back
+
+=item B<--quorum_out> FILE
+
+=over 2
+
+Specify the file name where calculated quorum shall be kept. The file
+contains the number of developers, and the value of the variable Q and
+K, as defined in the Debian constitution.
+
+=back
+
+=item B<--quorum_err> FILE
+
+=over 2
+
+Specify the file name where information of missing keys is kept
+
+=back
+
+=item B<--quorum_detail> FILE
+
+=over 2
+
+Specify the file name for developers uids and fingerprints
+
+=back
+
+=item B<--tally_file>  FILE
+
+=over 2
+
+Specify the file name for the tally sheet
+
+=back
+
+=item B<--tally_dummy> FILE
+
+=over 2
+
+Specify the file name for the dummy tally sheet
+
+=back
+
+=item B<--voters_file> FILE
+
+=over 2
+
+Specify the file name for the list of people who have voted
+
+
+=back
+
+=item B<--results> FILE
+
+Specify the file name where the resutls should be put
 
 =back
 
