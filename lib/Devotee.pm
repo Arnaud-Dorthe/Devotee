@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Oct 20 23:11:47 2003
+# Last Modified On : Sat Dec 13 18:40:48 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 242
+# Update Count     : 243
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -34,7 +34,7 @@ require 5.002;
 ($main::MYNAME     = $main::0) =~ s|.*/||;
 $main::Author      = "Manoj Srivastava";
 $main::AuthorMail  = "srivasta\@debian.org";
-$main::Version     = '$Revision$ ';
+$main::Version     = '1.00';
 
 
 package Devotee;
