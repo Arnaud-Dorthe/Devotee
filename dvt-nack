@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 17:59:36 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:20:53 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 44
+# Last Modified On : Thu Oct 14 18:28:03 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 45
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -88,7 +88,7 @@ sub send_mail {
     defined $params{'Body'};
 
   open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
-# open(MAIL, ">>Nacks")                 || die "Cannot open sendmail";
+  # open(MAIL, ">>Nacks")                 || die "Cannot open sendmail";
   print MAIL <<EOH;
 From: secretary\@debian.org
 To: $params{'Destination'}
@@ -127,7 +127,7 @@ sub send_nack {
 
   opendir(NACK, $nackdir) || die "can't opendir $nackdir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-                        -f  "$workdir/$_" }   readdir(NACK);
+                          -f  "$workdir/$_" }   readdir(NACK);
   closedir(NACK);
 
   foreach my $msg (sort @messages) {
@@ -185,8 +185,8 @@ sub send_nack {
     $body .= "\n\tThanks for your participation.\n";
 
     &send_mail('Destination' => "$from",
-	       'Subject'     => "$subject",
-	       'Body'        => "$body");
+               'Subject'     => "$subject",
+               'Body'        => "$body");
     $ret = open(SENT, ">>$nackdir/$msg_base.sent");
     if (!$ret) {
       &log_message($msg, "Error logging mesage $nackdir/$msg_base.sent:$!");

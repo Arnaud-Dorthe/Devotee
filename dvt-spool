@@ -5,9 +5,9 @@
 # Created On       : Thu Mar  7 14:17:20 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr 11 10:17:03 2004
+# Last Modified On : Thu Oct 14 18:29:38 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 34
+# Update Count     : 35
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -33,7 +33,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 =head1 NAME
@@ -173,8 +173,8 @@ sub new_sequence_number {
     $next_seq = ++$new_seq;
   }
   set_seq_number('Sequence Number' => $next_seq,
-		 'Spool_Dir' => $spooldir,
-		 'Sequence File' => $sequence_file_name);
+                 'Spool_Dir' => $spooldir,
+                 'Sequence File' => $sequence_file_name);
   unlock_seq_number($spooldir, $sequence_file_name, $lock_suffix);
   return $new_seq;
 }
@@ -234,9 +234,9 @@ sub main {
   my %Config = %{ $confref };
 
   $sequence_number = &new_sequence_number($Config{'Spool_Dir'}, 'Seq_Num',
-					  $Config{'Lock_Suffix'});
+                                          $Config{'Lock_Suffix'});
   &write_message('Sequence Number' => "$sequence_number",
-		 'Configuration' => $dvt);
+                 'Configuration' => $dvt);
 }
 
 &main;

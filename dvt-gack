@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr 11 10:13:13 2004
+# Last Modified On : Thu Oct 14 18:26:42 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 75
+# Update Count     : 76
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -106,7 +106,7 @@ sub generate_ack {
 
   opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-                        -f  "$workdir/$_" }   readdir(TALLY);
+                          -f  "$workdir/$_" }   readdir(TALLY);
   closedir(TALLY);
 
   if ($force && -e $aliasdb) {
@@ -133,20 +133,22 @@ sub generate_ack {
     chomp $vote;
 
     if (-r "$ldapdir/$msg") {
-       $ret = open(LDAP, "$ldapdir/$msg");
-       if (!$ret) {
-	 $dvt->log_message($msg, "Error reading uid from $ldapdir/$msg:$!");
-	 next;
-       }
-    }
-    else {
+      $ret = open(LDAP, "$ldapdir/$msg");
+      if (!$ret) {
+        $dvt->log_message($msg, "Error reading uid from $ldapdir/$msg:$!");
+        next;
+      }
+    } else {
       $dvt->log_message($msg, "No uid found in $ldapdir/$msg.\n");
       next;
     }
     my $uid;
     while (<LDAP>) {
       chomp;
-      if (m/^uid: (\S+)/o) { $uid = $1; };
+      if (m/^uid: (\S+)/o) {
+        $uid = $1;
+      }
+      ;
     }
     close LDAP;
 
@@ -155,8 +157,7 @@ sub generate_ack {
 
     if (defined $Moniker{ $uid }) {
       $alias = $Moniker{ $uid };
-    }
-    else {
+    } else {
       $first_vote = 1;
       $alias = '' . (time % (24 * 21 * 60 * 60));
       my @chars = (0 .. 9, 'a' .. 'z', 'A' .. 'Z');

@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 12:11:17 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:10:51 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 22
+# Last Modified On : Thu Oct 14 18:23:39 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 23
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -32,7 +32,7 @@
 use strict;
 
 require 5.005;
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 use MIME::Entity;
@@ -148,49 +148,46 @@ sub send_ballot {
   my $subject = $head->get('Subject');
 
   if (!$subject || $subject =~ /^\s*$/) {
-      $subject = "List of active votes";
-      opendir(BALLOTS, $ballotdir) || die "can't opendir $ballotdir: $!";
-      my @ballots = grep { m/\.blt$/ &&
-			     -r  "$ballotdir/$_" }   readdir(BALLOTS);
+    $subject = "List of active votes";
+    opendir(BALLOTS, $ballotdir) || die "can't opendir $ballotdir: $!";
+    my @ballots = grep { m/\.blt$/ &&
+                           -r  "$ballotdir/$_" }   readdir(BALLOTS);
 
-      if (@ballots) {
-	@ballots = grep { s/\.blt$// } @ballots;
-	$test_body =<<EOF;
-	The current list of active votes (these names can be used to request
+    if (@ballots) {
+      @ballots = grep { s/\.blt$// } @ballots;
+      $test_body =<<EOF;
+        The current list of active votes (these names can be used to request
 the ballots) are:
 
 EOF
-	;
-	$test_body .= join(' ', @ballots);
-      }
-      else {
-	$test_body ="\tThere are no current votes at this moment.\n";
-      }
-      &send_mail('Destination' => "$from",
-		 'Subject'     => "$subject",
-		 'Body'        => "$test_body");
-  }
-  else {
+      ;
+      $test_body .= join(' ', @ballots);
+    } else {
+      $test_body ="\tThere are no current votes at this moment.\n";
+    }
+    &send_mail('Destination' => "$from",
+               'Subject'     => "$subject",
+               'Body'        => "$test_body");
+  } else {
     my @requests = split(' ', $subject);
     my $requested;
     foreach $requested (@requests) {
       if (-r "$ballotdir/$requested.blt") {
-	open(BALLOT, "$ballotdir/$requested.blt")  ||
+        open(BALLOT, "$ballotdir/$requested.blt")  ||
           die "can't opendir $ballotdir/$requested.blt $!";
-	undef $/;
-	$test_body = <BALLOT>;
-	$/="\n";
-	if (!$test_body) {
+        undef $/;
+        $test_body = <BALLOT>;
+        $/="\n";
+        if (!$test_body) {
           $test_body ="\tError reading ballot for $requested.\n";
-	}
-	close (BALLOT);
-      }
-      else {
+        }
+        close (BALLOT);
+      } else {
         $test_body ="\tNo ballot found for $requested.\n";
       }
       &send_mail('Destination' => "$from",
-		 'Subject'     => "Ballot for $requested",
-		 'Body'        => "$test_body");
+                 'Subject'     => "Ballot for $requested",
+                 'Body'        => "$test_body");
 
     }
   }
@@ -218,17 +215,15 @@ sub init {
 
   if (defined $params{'Config File'} && -r $params{'Config File'} ) {
     $config_file = $params{'Config File'};
-  }
-  elsif (-r "$dotdir/.devotee") {
+  } elsif (-r "$dotdir/.devotee") {
     $config_file = "$dotdir/.devotee";
-  }
-  elsif (-r '/etc/devotee.conf') {
+  } elsif (-r '/etc/devotee.conf') {
     $config_file = '/etc/devotee.conf';
   }
 
 
   if ($config_file) {
-   my $ret = do "$config_file";
+    my $ret = do "$config_file";
     unless ($ret) {
       die "Couldn't parse $config_file: $@" if $@;
       die "Couldn't do $config_file: $!" unless defined $return;
@@ -238,11 +233,9 @@ sub init {
 
   if (defined $main::Config{'Ballot Dir'} && -d $main::Config{'Ballot Dir'}) {
     $ballotdir = $main::Config{'Ballot Dir'};
-  }
-  elsif (-d $dotdir) {
+  } elsif (-d $dotdir) {
     $ballotdir = "$dotdir/../../ballots";
-  }
-  else {
+  } else {
     die "Could Not determine ballot dir"
   }
 
@@ -268,8 +261,7 @@ sub main {
 
   if ($opt_config) {
     &init('Config File' => "$opt_config");
-  }
-  else {
+  } else {
     &init;
   }
 

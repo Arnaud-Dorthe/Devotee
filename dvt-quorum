@@ -5,9 +5,9 @@
 # Created On       : Thu Mar 13 18:07:30 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Mar  9 13:18:09 2004
+# Last Modified On : Thu Oct 14 18:29:05 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 117
+# Update Count     : 118
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -98,10 +98,10 @@ Quorum_Details.
 =cut
 
 sub onerror {
-	my ($mesg) = @_;
-	print "Net::LDAP failure: " . $mesg->error . "\n";
-	exit 1 if ($mesg->is_error);
-	return $mesg;
+  my ($mesg) = @_;
+  print "Net::LDAP failure: " . $mesg->error . "\n";
+  exit 1 if ($mesg->is_error);
+  return $mesg;
 }
 
 sub do_quorum {
@@ -132,17 +132,17 @@ sub do_quorum {
   my $gnupg = GnuPG::Interface->new();
 
   my @gpg_args = ("--no-default-keyring", "--always-trust",
-		  "--no-auto-check-trustdb");
+                  "--no-auto-check-trustdb");
   push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
   push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
 
   $gnupg->options->hash_init( 'no_options' => 1,
-			      'armor'   => 1,
-			      'homedir' => "$topdir",
-			      'meta_interactive' => 0,
-			      'rfc1991' => 1,
-			      'extra_args' => [ @gpg_args ]
-			    );
+                              'armor'   => 1,
+                              'homedir' => "$topdir",
+                              'meta_interactive' => 0,
+                              'rfc1991' => 1,
+                              'extra_args' => [ @gpg_args ]
+                            );
   my %seen_print  = ();
   my %ldap_prints = ();
   my %uids        = ();
@@ -158,23 +158,23 @@ sub do_quorum {
 
   my $ldap = 
     new Net::LDAP($ldaphost, 
-		  "debug" => 0,
-		  "version" => '2',
-		  "onerror" => \&onerror 
-		 ) 
+                  "debug" => 0,
+                  "version" => '2',
+                  "onerror" => \&onerror 
+                 ) 
       or die "Failed to create LDAP Handle for $ldaphost: $@";
 
   $ldap->bind ();
   my @attributes = ('keyfingerprint');
   my $mesg = $ldap->search ("base" => "$base", "filter" => "$filter",
-			    "attrs" => \@attributes);
+                            "attrs" => \@attributes);
   $mesg->code && die $mesg->error;
 
   foreach my $entry ($mesg->entries) {
-		my $dn = $entry->dn ( );
-		#my $uid = join '', $entry->get_value('uid');
-		$dn =~ m/uid=(\w+),/o;
-		my $uid = $1;
+    my $dn = $entry->dn ( );
+    #my $uid = join '', $entry->get_value('uid');
+    $dn =~ m/uid=(\w+),/o;
+    my $uid = $1;
     next unless $uid;
     my @fingerprints = $entry->get_value('keyfingerprint');
     foreach my $keyfingerprint (@fingerprints) {
@@ -190,10 +190,9 @@ sub do_quorum {
   foreach my $candidates (sort keys %seen_print) {
     if ($ldap_prints{$candidates}) {
       if (defined $found{$ldap_prints{$candidates}}) {
-	$found{$ldap_prints{$candidates}} .= "%$candidates";
-      }
-      else {
-	$found{$ldap_prints{$candidates}} = "$candidates";
+        $found{$ldap_prints{$candidates}} .= "%$candidates";
+      } else {
+        $found{$ldap_prints{$candidates}} = "$candidates";
       }
     }
     print ERROR "fingerprint $candidates of $uids{$candidates} not found\n"
@@ -213,7 +212,7 @@ sub do_quorum {
       print DETAILS "\f" if $i;
       print DETAILS "-=" x 35, "\n";
       printf DETAILS "% 5s % 15s\t\t%s\n", "Count", "Debian UID",
-	" Key Fingerprint(s)";
+        " Key Fingerprint(s)";
       print DETAILS "-=" x 35, "\n";
       $i = 0;
     }

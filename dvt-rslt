@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr 11 10:24:18 2004
+# Last Modified On : Thu Oct 14 18:29:24 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 95
+# Update Count     : 99
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -68,6 +68,9 @@ It puts the results in the configured output file.
 
 =head2 Internal Implementation
 
+=head3 winner
+
+This is the workhorse routine. 
 This routine pays attention to the configuration variables
 Quorum_File, Tally_File, Max_Choices, and Results.
 
@@ -85,6 +88,7 @@ sub winner {
   my $max_choices = $Config{'Max_Choices'};
   my $results     = $Config{'Results'};
 
+  # The constitution defines the maximum value of K to be 5
   my $K = 5;
 
   # FIXME: this really should be optional
@@ -103,12 +107,13 @@ sub winner {
     }
   }
 
+  # OK. Start creating an output file.
   open (RESULTS, ">$results") || die "Could not open $results:$!";
   chmod 0660, "$results";
   my $now_string = gmtime;
   print RESULTS "Starting results calculation at $now_string\n\n";
 
-
+  # This is where we get our input data from
   open(TALLY, "$tallyfile") ||  die "Could not open $tallyfile:$!";
   while (<TALLY>) {
     chomp;
@@ -289,8 +294,8 @@ EOM
               if ($BeatPath{$i}{$k}{for} && $BeatPath{$k}{$j}{for} ) {
                 if ($BeatPath{$i}{$k}{for} == $BeatPath{$k}{$j}{for}) {
                   $BeatPath{$i}{$j}{for} = ($BeatPath{$i}{$k}{against} > 
-                                       $BeatPath{$k}{$j}{against}) ?
-                                         $BeatPath{$i}{$k}{for}:$BeatPath{$k}{$j}{for};
+                                            $BeatPath{$k}{$j}{against}) ?
+                                              $BeatPath{$i}{$k}{for}:$BeatPath{$k}{$j}{for};
                   $BeatPath{$i}{$j}{against} = ($BeatPath{$i}{$k}{against} > 
                                                 $BeatPath{$k}{$j}{against}) ?
                                                   $BeatPath{$i}{$k}{against} :
@@ -387,8 +392,7 @@ EOM
               $Weakest{$weak_count}{'Winner'}  = $i;
               $Weakest{$weak_count}{'Loser'}   = $j;
               $weak_count++;
-            }
-            else {
+            } else {
               $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{'for'};
               $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{'against'};
               $Weakest{$weak_count}{'Winner'}  = $i;
@@ -421,8 +425,7 @@ EOM
               $Weakest{$weak_count}{'Winner'} = $j;
               $Weakest{$weak_count}{'Loser'}  = $i;
               $weak_count++;
-            }
-            else {
+            } else {
               $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
               $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
               $Weakest{$weak_count}{'Winner'}  = $j;

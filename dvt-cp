@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 23 22:29:26 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:04:04 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 31
+# Last Modified On : Thu Oct 14 18:24:42 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 32
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -34,7 +34,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 =head1 NAME
@@ -99,7 +99,7 @@ sub copy_messages {
 
   opendir(SPOOL, $spooldir) || die "can't opendir spooldir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-                        -f  "$spooldir/$_" }   readdir(SPOOL);
+                          -f  "$spooldir/$_" }   readdir(SPOOL);
   closedir(SPOOL);
 
   my $msg         ;
@@ -129,14 +129,14 @@ sub copy_messages {
 
       $signal_num  = $? & 127;
       if ($signal_num) {
-	warn "cp recieved signal $signal_num\n";
-	$dvt->log_message($msg, "cp recieved signal $signal_num\n");
+        warn "cp recieved signal $signal_num\n";
+        $dvt->log_message($msg, "cp recieved signal $signal_num\n");
       }
 
       $dumped_core = $? & 128;
       if ($dumped_core) {
-	warn "cp dumped core\n";
-	$dvt->log_message($msg, "cp dumped core\n");
+        warn "cp dumped core\n";
+        $dvt->log_message($msg, "cp dumped core\n");
       }
 
     }

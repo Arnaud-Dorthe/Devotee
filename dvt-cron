@@ -5,9 +5,9 @@
 # Created On       : Mon Oct 20 23:16:09 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Mar  9 13:03:36 2004
+# Last Modified On : Thu Oct 14 18:25:43 2004
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 5
+# Update Count     : 6
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -88,8 +88,8 @@ echo tallying done
 echo Calculated results
 
 if [ -d $HTML_DIR ]; then
-   cp -f ./data/${vote}/voters.txt      $HTML_DIR/${vote}_voters.txt;
-   cp -f ./data/${vote}/dummy_tally.txt $HTML_DIR/dummy_${vote}_tally.txt
+    cp -f ./data/${vote}/voters.txt      $HTML_DIR/${vote}_voters.txt;
+    cp -f ./data/${vote}/dummy_tally.txt $HTML_DIR/dummy_${vote}_tally.txt
 fi
 
 echo cleaning up

@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 30 11:33:31 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:22:25 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 43
+# Last Modified On : Thu Oct 14 18:30:02 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 44
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -33,7 +33,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 use Digest::MD5  qw(md5 md5_hex md5_base64);
 use DB_File;
@@ -97,7 +97,7 @@ sub create_tally {
 
   opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-			  -f  "$ldapdir/$_"} readdir(TALLY);
+                          -f  "$ldapdir/$_"} readdir(TALLY);
   closedir(TALLY);
 
   my %Moniker;
@@ -119,12 +119,11 @@ sub create_tally {
     chomp $vote;
 
     if (-r "$ldapdir/$msg") {
-       $ret = open(LDAP, "$ldapdir/$msg");
-       if (!$ret) {
-         die "Error reading uid from $ldapdir/$msg:$!";
-       }
-    }
-    else {
+      $ret = open(LDAP, "$ldapdir/$msg");
+      if (!$ret) {
+        die "Error reading uid from $ldapdir/$msg:$!";
+      }
+    } else {
       die "Could not read uid from  $ldapdir/$msg.\n";
     }
     my $uid;
@@ -132,9 +131,18 @@ sub create_tally {
     my $sn;
     while (<LDAP>) {
       chomp;
-      if (m/^uid: (\S+)/o) { $uid = $1; };
-      if (m/^cn: (.*)$/o)  { $cn = $1; };
-      if (m/^sn: (.*)$/o) { $sn = $1; };
+      if (m/^uid: (\S+)/o) {
+        $uid = $1;
+      }
+      ;
+      if (m/^cn: (.*)$/o) {
+        $cn = $1;
+      }
+      ;
+      if (m/^sn: (.*)$/o) {
+        $sn = $1;
+      }
+      ;
     }
     close LDAP;
 
@@ -147,8 +155,7 @@ sub create_tally {
     open (TALLY, ">$tallyfile") ||
       die "Could not open $tallyfile for writing:$!";
     chmod 0660, "$tallyfile";
-  }
-  else {
+  } else {
     open (TALLY, ">$dummyfile") ||
       die "Could not open $dummyfile for writing:$!";
   }
@@ -163,8 +170,7 @@ sub create_tally {
     print TALLY " by simply running md5sum. Forexample, for login ID srivasta, and\n";
     print TALLY " the secret token 0123456789ABCDE, the following invocation works:\n";
     print TALLY "   % echo \"srivasta 0123456789ABCDE\" | md5sum\n";
-  }
-  else {
+  } else {
     print TALLY "       \"V: vote \tLogin\tName\"\n";
   }
   print TALLY " The vote block represents the ranking given to each of the \n";
@@ -180,17 +186,17 @@ sub create_tally {
   print TALLY " ", "-=" x 34, "\n";
   my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
 
-#   foreach my $index (1 .. ($#valid_options + 1) ) {
-#     print TALLY "   ", " |" x ($index - 2), $index > 1 ? " / " : " ",
-#       " Option $index", "--" x ($#valid_options + 2 - $index), "->: ",
-#       $Config{"Option_$index"}, "\n";
-#   }
-#   print TALLY "   ", " |" x ($#valid_options), " /\n";
+  #   foreach my $index (1 .. ($#valid_options + 1) ) {
+  #     print TALLY "   ", " |" x ($index - 2), $index > 1 ? " / " : " ",
+  #       " Option $index", "--" x ($#valid_options + 2 - $index), "->: ",
+  #       $Config{"Option_$index"}, "\n";
+  #   }
+  #   print TALLY "   ", " |" x ($#valid_options), " /\n";
   foreach my $index (1 .. ($#valid_options + 1) ) {
     print TALLY "\n";
     print TALLY "   ", "|" x ($index - 2), $index > 1 ? "/ " : " ",
       " Option $index", "-" x ($#valid_options + 2 - $index), "->: ",
-	$Config{"Option_$index"};
+        $Config{"Option_$index"};
   }
   print TALLY "   ", "|" x ($#valid_options), "/\n";
   my @count = sort keys %votes;
@@ -198,26 +204,23 @@ sub create_tally {
     if ($Config{Secret}) {
       my $name = splice @count, int(rand(scalar(@count))), 1;
       if (! defined $Moniker{ $name }) {
-	die "Could not find the moniker for $name\n";
+        die "Could not find the moniker for $name\n";
       }
       my $alias = $Moniker{ $name };
       if ($Config{Final_Tally}) {
-	print TALLY $votes{"$name"}, " \t\t", md5_hex("$name $alias\n"), "\n";
+        print TALLY $votes{"$name"}, " \t\t", md5_hex("$name $alias\n"), "\n";
+      } else {
+        print TALLY "V: ", "-" x $#valid_options,  "1", " \t\t",
+          md5_hex("$name $alias obfuscate\n"), "\n";
       }
-      else {
-	print TALLY "V: ", "-" x $#valid_options,  "1", " \t\t",
-	  md5_hex("$name $alias obfuscate\n"), "\n";
-      }
-    }
-    else {
+    } else {
       my $name = shift @count;
       if ($Config{Final_Tally}) {
-	print  TALLY $votes{"$name"};
-	printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
-      }
-      else {
-	print  TALLY "V: ", "-" x $#valid_options,  "1";
-	printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
+        print  TALLY $votes{"$name"};
+        printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
+      } else {
+        print  TALLY "V: ", "-" x $#valid_options,  "1";
+        printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
       }
     }
   }

@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 01:46:36 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 46
+# Last Modified On : Thu Oct 14 18:27:19 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 47
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -33,7 +33,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 use Net::LDAP;
@@ -111,10 +111,10 @@ sub ldap_callback {
   $entry or return;
 
   #my $output = $entry->get_value('uid');
-	#my $uid = join '', $entry->get_value('uid');
-	my $dn  = $entry->dn();
-	   $dn  =~ m/uid=(\w+),/o;
-	my $uid = $1;
+  #my $uid = join '', $entry->get_value('uid');
+  my $dn  = $entry->dn();
+  $dn  =~ m/uid=(\w+),/o;
+  my $uid = $1;
   my $cn  = join '', $entry->get_value('cn');
   my $sn  = join '', $entry->get_value('sn');
   die "No UID found." unless $uid;
@@ -128,7 +128,8 @@ sub ldap_callback {
   print LDAP "cn: $cn\n" if $cn;
   print LDAP "sn: $sn\n" if $sn;
   close LDAP;
-};
+}
+;
 
 sub ldap_info {
   my %params   = @_;
@@ -149,9 +150,9 @@ sub ldap_info {
   my $force       = $Config{'Force'};
 
   my $ldap = new Net::LDAP($ldaphost, "debug" => 0,
-			   "version" => '2',
-			   "onerror" => \&onerror ) or 
-    die "Failed to create LDAP Handle for $ldaphost: $@";
+                           "version" => '2',
+                           "onerror" => \&onerror ) or 
+                             die "Failed to create LDAP Handle for $ldaphost: $@";
   $ldap->bind ();
   # $ldap->bind (dn=>$somedn, password=>$somepw):
 
@@ -175,16 +176,16 @@ sub ldap_info {
     $filter = "(keyfingerprint=$filter)";
     my @attributes = ('cn', 'sn' );
     eval {  $ldap->search ("base" => "$base", "filter" => "$filter",
-			   "attrs" => \@attributes,
-			   "callback" => sub {
-			     my ($mesg, $entry) = @_;
-			     &ldap_callback('Request'  	    => $mesg,
-					    'Entry'    	    => $entry,
-					    'Message'  	    => $msg,
-					    'LDAP_Dir' 	    => $ldapdir,
-					    'Nack_Dir' 	    => $nackdir,
-					    'Configuration' => $dvt)}
-			  ); };
+                           "attrs" => \@attributes,
+                           "callback" => sub {
+                             my ($mesg, $entry) = @_;
+                             &ldap_callback('Request'       => $mesg,
+                                            'Entry'         => $entry,
+                                            'Message'       => $msg,
+                                            'LDAP_Dir'      => $ldapdir,
+                                            'Nack_Dir'      => $nackdir,
+                                            'Configuration' => $dvt)}
+                          ); };
     if ($@) {
       $dvt->log_message($msg, "Error getting ldap info:$@");
     }

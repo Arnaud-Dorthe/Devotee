@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 14:28:14 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 01:22:06 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 30
+# Last Modified On : Thu Oct 14 18:28:32 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 31
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -33,7 +33,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 =head1 NAME
@@ -93,7 +93,7 @@ sub parse_messages {
 
   opendir(BODY, $bodydir) || die "can't opendir $workdir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-                        -f  "$bodydir/$_" }   readdir(BODY);
+                          -f  "$bodydir/$_" }   readdir(BODY);
   closedir(BODY);
   foreach my $msg (@messages ) {
     next if !$force && (-e "$tallydir/$msg" || -e "$nackdir/$msg");
@@ -136,8 +136,8 @@ sub parse_messages {
       if ($rank < 1 || $rank > $maxchoices) {
         $text .= "\n$_\n";
         $text .= "Rank has to be at least 1 [$rank]]\n" if $rank < 1;
-       $text .= "Rank has to be less than the number of candidate\n"
-         if $rank > $maxchoices;
+        $text .= "Rank has to be less than the number of candidate\n"
+          if $rank > $maxchoices;
         $text .= "The number of candidates =  $maxchoices. \n"
           if $rank > $maxchoices;
         $text .= "Your choice [$rank]\n"   if $rank > $maxchoices;
@@ -145,10 +145,10 @@ sub parse_messages {
         next;
       }
       if ($candidate < 1 || $candidate > $maxchoices) {
-	$text .= "\n$_\n";
-	$text .= "Malformed ballot line: No such choice [$candidate]\n";
-	$valid = -10 * $maxchoices;
-	next;
+        $text .= "\n$_\n";
+        $text .= "Malformed ballot line: No such choice [$candidate]\n";
+        $valid = -10 * $maxchoices;
+        next;
       }
       $valid++;
       $rank{ $candidate } = $rank;
@@ -157,25 +157,24 @@ sub parse_messages {
     if ($valid > 0) {
       my $tally = "V: ";
       for my $candidate (1 .. $maxchoices) {
-	#$tally .= sprintf("%02d", $rank{ $candidate }) if defined $rank{ $candidate };
-	$tally .= sprintf("%d", $rank{ $candidate }) if defined $rank{ $candidate };
-	$tally .= '-'                            unless defined $rank{ $candidate };
+        #$tally .= sprintf("%02d", $rank{ $candidate }) if defined $rank{ $candidate };
+        $tally .= sprintf("%d", $rank{ $candidate }) if defined $rank{ $candidate };
+        $tally .= '-'                            unless defined $rank{ $candidate };
       }
       $tally .= "\n";
       $ret = open (TALLY, ">$tallydir/$msg");
       if (!$ret) {
-	$dvt->log_message($msg, "Could not open $tallydir/$msg:$!");
+        $dvt->log_message($msg, "Could not open $tallydir/$msg:$!");
       }
       chmod 0660, "$tallydir/$msg";
       print TALLY $tally;
       close TALLY;
-    }
-    else {
+    } else {
       $dvt->log_message($msg, "Invalid ballot.\n");
       $dvt->log_message($msg, $text) if $text;
       $ret = open (NACK, ">>$nackdir/$msg");
       if (!$ret) {
-	$dvt->log_message($msg, "Could not open $nackdir/$msg:$!");
+        $dvt->log_message($msg, "Could not open $nackdir/$msg:$!");
       }
       chmod 0660, "$nackdir/$msg";
       print NACK "There was an error parsing your ballot.\n";

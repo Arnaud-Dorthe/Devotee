@@ -5,9 +5,9 @@
 # Created On       : Wed Apr  3 21:12:43 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 13:21:47 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 46
+# Last Modified On : Thu Oct 14 18:30:27 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 47
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -34,7 +34,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 use Net::LDAP;
@@ -90,7 +90,7 @@ sub create_list {
 
   opendir(LDAP, $ldapdir) || die "can't open gpg output dir $ldapdir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-		       -e "$tallydir/$_" }  readdir(LDAP);
+                          -e "$tallydir/$_" }  readdir(LDAP);
   closedir(LDAP);
 
   my %Data;
@@ -104,9 +104,13 @@ sub create_list {
     die "Error Reading fingerprint from $ldapdir/$msg:$!" unless $ret;
     while (<LDAP>) {
       chomp;
-      if    (m/^uid: (\S+)/o) { $uid = $1; next;  }
-      elsif (m/^cn: (.*)\s*$/o ) { $cn  = $1; next;  }
-      elsif (m/^sn: (.*)\s*$/o ) { $sn  = $1; next;  }
+      if (m/^uid: (\S+)/o) {
+        $uid = $1; next;
+      } elsif (m/^cn: (.*)\s*$/o ) {
+        $cn  = $1; next;
+      } elsif (m/^sn: (.*)\s*$/o ) {
+        $sn  = $1; next;
+      }
     }
     close LDAP;
 
@@ -117,7 +121,7 @@ sub create_list {
   }
 
   open (VOTERS, ">$votersfile") ||
-      die "Could not open $votersfile for writing:$!";
+    die "Could not open $votersfile for writing:$!";
 
   my $index = 0;
   foreach my $uid (sort keys %Data) {
@@ -129,7 +133,7 @@ sub create_list {
     }
     printf VOTERS "% 5d %15s\t%s %s\n", ++$index, $uid, 
       defined $Data{$uid}->{'cn'} ? $Data{$uid}->{'cn'} : " ",
-      defined $Data{$uid}->{'sn'} ? $Data{$uid}->{'sn'} : " ";
+        defined $Data{$uid}->{'sn'} ? $Data{$uid}->{'sn'} : " ";
   }
 }
 

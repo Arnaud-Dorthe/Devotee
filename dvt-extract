@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Nov 12 10:04:01 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 56
+# Last Modified On : Thu Oct 14 18:26:19 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 57
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -34,7 +34,7 @@ use strict;
 
 require 5.005;
 use Carp qw(carp croak);
-use Fcntl ':flock'; # import LOCK_* constants
+use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
 use MIME::Entity;
@@ -93,57 +93,52 @@ sub dump_entity {
 
   # Output the body:
   my @parts = $entity->parts;
-  if (@parts) {                     # multipart...
+  if (@parts) {                 # multipart...
     my $i;
-    foreach $i (0 .. $#parts) {       # dump each part...
+    foreach $i (0 .. $#parts) { # dump each part...
       dump_entity($bodydir, $msg, $parts[$i]);
     }
-  }
-  else {                            # single part...
+  } else {                      # single part...
     # Get MIME type, and display accordingly...
     my ($type, $subtype) = split('/', $entity->head->mime_type);
     my $body = $entity->bodyhandle;
-    if ($type =~ /^(text|message)$/ ) {     # text: display it...
+    if ($type =~ /^(text|message)$/ ) { # text: display it...
       if ($IO = $body->open("r")) {
-	my $ret = open(DATA, ">>$bodydir/$msg");
-	if (!$ret) {
-	  &log_message($msg, "Could not create output $bodydir/$msg");
-	  return;
-	}
-	chmod 0660, "$bodydir/$msg";
-	print DATA $_ while (defined($_ = $IO->getline));
-	$IO->close;
-	close DATA;
+        my $ret = open(DATA, ">>$bodydir/$msg");
+        if (!$ret) {
+          &log_message($msg, "Could not create output $bodydir/$msg");
+          return;
+        }
+        chmod 0660, "$bodydir/$msg";
+        print DATA $_ while (defined($_ = $IO->getline));
+        $IO->close;
+        close DATA;
+      } else {                  # d'oh!
+        &log_message($msg, "couldn't find/open part: $!");
       }
-      else {       # d'oh!
-	&log_message($msg, "couldn't find/open part: $!");
-      }
-    }
-    elsif ($type =~ /^application$/ && $subtype=~ /^pgp$/) {
+    } elsif ($type =~ /^application$/ && $subtype=~ /^pgp$/) {
       my $disposition = $entity->head->mime_attr("content-disposition");
       if ($disposition && $disposition =~ /^inline$/) {
-	if ($IO = $body->open("r")) {
-	  my $ret = open(DATA, ">>$bodydir/$msg");
-	  if (!$ret) {
-	    &log_message($msg, "Could not create output $bodydir/$msg");
-	    return;
-	  }
-	  chmod 0660, "$bodydir/$msg";
-	  print DATA $_ while (defined($_ = $IO->getline));
-	  $IO->close;
-	  close DATA;
-	}
-	else {       # d'oh!
-	  &log_message($msg, "Could not create output $bodydir/$msg");
-	  return;
-	}
+        if ($IO = $body->open("r")) {
+          my $ret = open(DATA, ">>$bodydir/$msg");
+          if (!$ret) {
+            &log_message($msg, "Could not create output $bodydir/$msg");
+            return;
+          }
+          chmod 0660, "$bodydir/$msg";
+          print DATA $_ while (defined($_ = $IO->getline));
+          $IO->close;
+          close DATA;
+        } else {                # d'oh!
+          &log_message($msg, "Could not create output $bodydir/$msg");
+          return;
+        }
       }
-    }
-    else {
+    } else {
       my $eff_type = $entity->effective_type;
       my $disposition = $entity->head->mime_attr("content-disposition");
-#     &log_message($msg, "effective type [" . $eff_type .
-#	   "] disposition [" . $disposition . "]");
+      #     &log_message($msg, "effective type [" . $eff_type .
+      #          "] disposition [" . $disposition . "]");
       return;
     }
   }
@@ -168,7 +163,7 @@ sub extract_messages {
 
   opendir(WORK, $workdir) || die "can't opendir $workdir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
-                        -f  "$workdir/$_" }   readdir(WORK);
+                          -f  "$workdir/$_" }   readdir(WORK);
   closedir(WORK);
 
   my $msg         ;
