@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #                              -*- Mode: Perl -*- 
-# dvt-ldap.pl --- 
+# dvt-ldap --- 
 # Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
@@ -40,6 +40,12 @@ use Net::LDAP;
 #use Net::LDAPS;  # commented out stuff useful for LDAPS
 
 use vars qw($msg $ldapdir);
+
+=head1 NAME
+
+dvt-ldap - query the LDAP server to determine the unique ID for voters
+
+=cut
 
 =head1 SYNOPSIS
 
