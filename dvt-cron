@@ -5,9 +5,9 @@
 # Created On       : Mon Oct 20 23:16:09 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Oct 29 15:28:06 2003
-# Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 3
+# Last Modified On : Tue Apr  5 00:41:57 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 7
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -34,72 +34,84 @@
 
 set -e
 
-workdir=/org/vote.debian.org/
-test -d $workdir || exit 1
+basedir=/org/vote.debian.org/
+test -d $basedir || exit 1
+
+BALLOTDIR=$basedir/ballots/
+
+html_dir="$HOME/public_html"
+
+
+ballots=$(find $BALLOTDIR -type f -name \*.blt);
+
+
 
 date
-cd $workdir
+cd $basedir
 
-PATH=$workdir/bin:$PATH
+PATH=$basedir/bin:$PATH
 export PATH
 
-HTML_DIR=$HOME/public_html
+for ballot in $ballots; do
+    vote=$(basename $ballot .blt; )
+    conffile=$basedir/data/$vote/devotee.conf
 
-vote="$1"
-conffile=./data/$vote/devotee.conf
+    if [ -e "$conffile" ]; then
+        $basedir/bin/dvt-cp       -c $conffile
+        echo Copying Done for $vote
 
-./bin/dvt-cp       -c $conffile
-echo Copying Done
+        $basedir/bin/dvt-mime     -c $conffile
+        echo mime decoding done for $vote
 
-./bin/dvt-mime     -c $conffile
-echo mime decoding done
+        $basedir/bin/dvt-gpg      -c $conffile
+        echo GPG checks done for $vote
 
-./bin/dvt-gpg      -c $conffile
-echo GPG checks done
+        $basedir/bin/dvt-ldap     -c $conffile
+        echo LDAP checks done for $vote
 
-./bin/dvt-ldap     -c $conffile
-echo LDAP checks done
+        $basedir/bin/dvt-extract  -c $conffile
+        echo extracted message for $vote
 
-./bin/dvt-extract  -c $conffile
-echo extracted message
+        $basedir/bin/dvt-parse    -c $conffile
+        echo Parsed ballot for $vote
 
-./bin/dvt-parse    -c $conffile
-echo Parsed ballot
+        $basedir/bin/dvt-gack     -c $conffile
+        echo generated ack for $vote
 
-./bin/dvt-gack     -c $conffile
-echo generated ack
+        $basedir/bin/dvt-nack     -c $conffile
+        echo sent out error messages for $vote
 
-./bin/dvt-nack     -c $conffile
-echo sent out error messages
+        $basedir/bin/dvt-ack     -c $conffile
+        echo sent out acks for $vote
 
-./bin/dvt-ack     -c $conffile
-echo sent out acks
+        $basedir/bin/dvt-voters    -c $conffile
+        echo generated list of voters for $vote
 
-./bin/dvt-voters    -c $conffile
-echo generated list of voters
+        $basedir/bin/dvt-tally     -c $conffile 
+        echo did the dummy tally sheet for $vote
 
-./bin/dvt-tally     -c $conffile 
-echo did the dummy tally sheet
+        $basedir/bin/dvt-tally   --final_tally   -c $conffile 
+        echo tallying done for $vote
 
-./bin/dvt-tally   --final_tally   -c $conffile 
-echo tallying done
+        $basedir/bin/dvt-rslt -c $conffile 
+        echo Calculated results for $vote
 
-./bin/dvt-rslt -c $conffile 
-echo Calculated results
+        if [ -d $html_dir ]; then
+            cp -f $basedir/data/${vote}/voters.txt      $html_dir/${vote}_voters.txt;
+            cp -f $basedir/data/${vote}/dummy_tally.txt $html_dir/dummy_${vote}_tally.txt
+        fi
 
-if [ -d $HTML_DIR ]; then
-   cp -f ./data/${vote}/voters.txt      $HTML_DIR/${vote}_voters.txt;
-   cp -f ./data/${vote}/dummy_tally.txt $HTML_DIR/dummy_${vote}_tally.txt
-fi
+        uids=$(cd $basedir/data/$vote/ldap/; egrep ^uid: $(cd .$basedir/tally; ls -1 *.raw) 2>/dev/null | sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
+        tally=$(ls -1 $basedir/data/$vote/tally/*.raw 2>/dev/null | wc -l; )
+        outfile=$basedir/data/${vote}/timeline/results.$(date +%s).txt
+        outgraph=${outfile%%txt}png
+        echo "The total numbers of votes tallied = $uids" >> $basedir/data/${vote}/results.txt
+        if [ -d $basedir/data/${vote}/timeline ]; then
+            cp -f $basedir/data/${vote}/results.txt $outfile
+            cp -f $basedir/data/${vote}/results.png $outgraph
+        fi
 
-uids=$(cd $workdir/data/$vote/ldap/; egrep ^uid: $(cd ../tally; ls -1 *.raw) 2>/dev/null | sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
-tally=$(ls -1 $workdir/data/$vote/tally/*.raw 2>/dev/null | wc -l; )
-outfile=./data/${vote}/timeline/results.$(date +%s).txt
-echo "The total numbers of votes tallied = $uids" >> ./data/${vote}/results.txt
-if [ -d ./data/${vote}/timeline ]; then
-   cp -f ./data/${vote}/results.txt $outfile
-fi
-
-echo cleaning up
-find ./data/${vote}/tmp/ -type f -exec rm {} \;
-
+        echo cleaning up
+        find $basedir/data/${vote}/tmp/ -type f -exec rm {} \;
+    fi
+done

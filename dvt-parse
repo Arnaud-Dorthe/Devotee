@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 14:28:14 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:28:32 2004
+# Last Modified On : Mon Apr  4 22:09:13 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 31
+# Update Count     : 34
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -87,6 +87,7 @@ sub parse_messages {
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
   my $force       = $Config{'Force'};
+  my $uuid        = $Config{'UUID'};
 
   my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
   my $maxchoices  = $#valid_options + 1;
@@ -105,11 +106,14 @@ sub parse_messages {
     my %rank = ();
     my $valid = 0;
     my $text;
+    my $have_uuid = 0;
+    $have_uuid =1 unless $uuid;
 
     while (<MESSAGE>) {
       chomp;
       s/#.*$//o;
       next if /^\s*$/o;
+      $have_uuid++ if m/\Q$uuid\E/;
       next unless /\[\s*(\d+)\s*\]\s*(Choice\s+(\d+):\s*(.*))$/;
 
       my $rank = $1;
@@ -154,7 +158,8 @@ sub parse_messages {
       $rank{ $candidate } = $rank;
     }
     close MESSAGE;
-    if ($valid > 0) {
+
+    if ($valid > 0 && $have_uuid > 0) {
       my $tally = "V: ";
       for my $candidate (1 .. $maxchoices) {
         #$tally .= sprintf("%02d", $rank{ $candidate }) if defined $rank{ $candidate };
@@ -170,6 +175,9 @@ sub parse_messages {
       print TALLY $tally;
       close TALLY;
     } else {
+      if (! $have_uuid) {
+        $text .= "Did not find the valid UUID for this vote \n\t($uuid)\n";
+      }
       $dvt->log_message($msg, "Invalid ballot.\n");
       $dvt->log_message($msg, $text) if $text;
       $ret = open (NACK, ">>$nackdir/$msg");

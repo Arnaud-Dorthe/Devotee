@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Apr  4 10:07:34 2005
+# Last Modified On : Mon Apr  4 20:53:32 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 246
+# Update Count     : 247
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -444,6 +444,7 @@ Version $main::Version
 		  "Secret"           => 1,
 		  "Sig_Suffix"       => 'sig',
                   "Encrypted_Suffix" => 'gpg',
+                  "UUID"             => "",
 		  "Need_GPG"         => 1,
 		  "Need_PGP"         => 1,
 		  "Need_LDAP"        => 1,
