@@ -4,9 +4,9 @@
 # Created On       : Sat Dec 13 18:38:23 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat Dec 13 20:53:09 2003
+# Last Modified On : Sat Dec 13 20:57:08 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 11
+# Update Count     : 12
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -36,8 +36,8 @@ WriteMakefile(
 	      'NAME'        => 'Devotee',
 	      'VERSION_FROM' => 'lib/Devotee.pm',
 	      ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-	       'ABSTRACT'    => 'The DEbian VOte Engine for email based votes',
-	       'AUTHOR'      => 'Manoj Srivastava <srivasta@debian.org>' : ()),
+	       ('ABSTRACT'    => 'The DEbian VOte Engine for email based votes',
+		'AUTHOR'      => 'Manoj Srivastava <srivasta@debian.org>') : ()),
 	      'EXE_FILES'    =>  [qw[dvt-ack dvt-ballot dvt-cp
                                        dvt-extract dvt-gack dvt-gpg
                                        dvt-ldap dvt-mime dvt-nack
