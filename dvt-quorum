@@ -1,0 +1,233 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Cperl -*- 
+# dvt-quorum --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Thu Mar 13 18:07:30 2003
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri Oct 17 03:03:42 2003
+# Last Machine Used: glaurung.green-gryphon.com
+# Update Count     : 111
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+#gpg --fast-list-mode --no-options --no-default-keyring \
+#    --keyring ./debian-keyring.pgp --keyring ./debian-keyring.gpg \
+#    --fingerprint --with-colons | grep ^fpr | cut -d: -f10 > ~/allkeys
+#ldapsearch -LLLxP2  -h db.debian.org -b dc=debian,dc=org '(gidnumber=800)' uid keyfingerprint > ldapids
+#ldapsearch -LLLxP2  -h db.debian.org -b dc=debian,dc=org  uid keyfingerprint 
+#ldapsearch -LLLxP2  -h db.debian.org -b dc=debian,dc=org '(objectclass=debiandeveloper)' uid 
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+
+use IO::Handle;
+use GnuPG::Interface;
+use DB_File;
+
+use Net::LDAP;
+
+=head1 NAME
+
+dvt-quorum - Determine the quorum for the vote
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-quorum -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This utility calculates the current Quorum requirements for a Debian
+Project General Resolution vote, and is fairly Debian specific. 
+
+Not only does thi calculate the quorum, it also generates a list of
+developers (and their key fingerprints) who were eligible to vote.
+Also recorded are any missing keys; that is, keys whose fingerprints
+live in the keyring but not in the LDAP database.
+
+=cut
+
+=head2 Internal Implementation
+
+It starts by looking at all the fingerprints for all the keys in the
+keyrings specified, and caching them. Then, it contacts the LDAP
+server, uding the configured details, and gets the uids and
+fingerprints registered with LDAP that match the filter (the default
+filter filters on the basis of the Debian develkopers group in LDAP)..
+
+Then, it records the UID's associated with fingerprints that are
+present both in the keyring, as well as belong to a Debian developer
+in LDAP, taking into account some developers have multiple keys.
+
+=cut
+
+=head3 Configuration Options
+
+
+
+=cut
+
+sub do_quorum {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $ldaphost    = $Config{"Ldap_Host"};
+  my $base        = $Config{"Ldap_Base"};
+  my $filter      = $Config{"Ldap_Filter"};
+
+  my $gpgring     = $Config{'GPG_Keyring'}
+    if defined $Config{'GPG_Keyring'};
+  my $pgpring     = $Config{'PGP_Keyring'}
+    if defined $Config{'PGP_Keyring'};
+  my $secring     = $Config{'SEC_Keyring'}
+    if defined $Config{'SEC_Keyring'};
+  my $pubring     = $Config{'PUB_Keyring'}
+    if defined $Config{'PUB_Keyring'};
+
+  my $quorum_file = $Config{"Quorum_File"};
+  my $quorum_error= $Config{"Quorum_Error"};
+  my $quorum_details = $Config{"Quorum_Details"};
+
+  my $gnupg = GnuPG::Interface->new();
+
+  my @gpg_args = ("--no-default-keyring", "--always-trust");
+  push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
+  push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
+
+  $gnupg->options->hash_init( 'no_options' => 1,
+			      'armor'   => 1,
+			      'homedir' => "$topdir",
+			      'meta_interactive' => 0,
+			      'rfc1991' => 1,
+			      'extra_args' => [ @gpg_args ]
+			    );
+  my %seen_print  = ();
+  my %ldap_prints = ();
+  my %uids        = ();
+  
+  my @keys = $gnupg->get_public_keys();
+  foreach my $key (@keys) {
+    my $hex_id = $key->hex_id();
+    my $fingerprint = $key->fingerprint->as_hex_string();
+
+    $seen_print{$fingerprint} = $hex_id;
+    $uids{$fingerprint} = $key->user_ids_ref->[0]->as_string;;
+  }
+
+
+  my $ldap = 
+    new Net::LDAP($ldaphost, 
+		  "debug" => 0,
+		  "version" => '2',
+		  "onerror" => \&onerror 
+		 ) 
+      or die "Failed to create LDAP Handle for $ldaphost: $@";
+
+  $ldap->bind ();
+  my @attributes = ('uid', 'keyfingerprint');
+  my $mesg = $ldap->search ("base" => "$base", "filter" => "$filter",
+			    "attrs" => \@attributes);
+  $mesg->code && die $mesg->error;
+  foreach my $entry ($mesg->all_entries) {
+    my $uid = join '', $entry->get_value('uid');
+    next unless $uid;
+    my @fingerprints = $entry->get_value('keyfingerprint');
+    foreach my $keyfingerprint (@fingerprints) {
+      $ldap_prints{$keyfingerprint} = $uid;
+    }
+  }
+
+  $ldap->unbind ();
+
+  open(ERROR, ">$quorum_error") ||
+    die "Could not open $quorum_error:$!";
+  my %found = ();
+  foreach my $candidates (sort keys %seen_print) {
+    if ($ldap_prints{$candidates}) {
+      if (defined $found{$ldap_prints{$candidates}}) {
+	$found{$ldap_prints{$candidates}} .= "%$candidates";
+      }
+      else {
+	$found{$ldap_prints{$candidates}} = "$candidates";
+      }
+    }
+    print ERROR "fingerprint $candidates of $uids{$candidates} not found\n"
+      unless $ldap_prints{$candidates};
+  }
+  close ERROR;
+  
+  my $count = keys %found;
+
+  open(DETAILS, ">$quorum_details") ||
+    die "Could not open $quorum_details:$!";
+
+  my $index;
+  my $i = 25;
+  foreach my $found_name (sort keys %found) {
+    if ($i >= 24) {
+      print DETAILS "\f" if $i;
+      print DETAILS "-=" x 35, "\n";
+      printf DETAILS "% 5s % 15s\t\t%s\n", "Count", "Debian UID",
+	" Key Fingerprint(s)";
+      print DETAILS "-=" x 35, "\n";
+      $i = 0;
+    }
+    my $subline = 0;    
+    printf DETAILS "% 5d % 15s\t", ++$index,   $found_name;
+    foreach my $item (split(/%/, $found{$found_name})) {
+      print DETAILS "\t$item\n" unless $subline;
+      print DETAILS " " x 21, "\t\t$item\n" if $subline;
+      $i++; $subline++;
+    }
+  }
+
+  close DETAILS;
+  open(QUORUM, ">$quorum_file") ||  die "Could not open $quorum_file:$!";
+
+  print QUORUM " Current Developer Count = $count\n";
+  print QUORUM " Q ( sqrt(#devel) / 2 )  = ",   sqrt($count)/2, "\n";
+  print QUORUM " K ( 3 x Q )             = ", 3*sqrt($count)/2, "\n";
+  close QUORUM;
+}
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  &do_quorum('Configuration' => $dvt);
+}
+
+&main;
+
+exit 0;
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=cut
+
+1;
+
+__END__

@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat May 17 23:32:56 2003
+# Last Modified On : Fri Oct 17 03:05:57 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 63
+# Update Count     : 65
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -139,18 +139,17 @@ sub verify_messages {
 				     );
 
     my $gnupg = GnuPG::Interface->new();
-    # well, we should really create the extra args array depending on
-    # what is defined.
+
+    my @gpg_args = ("--no-default-keyring", "--always-trust");
+    push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
+    push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
+
     $gnupg->options->hash_init( 'no_options' => 1,
 				'armor'   => 1,
 				'homedir' => $topdir,
 				'meta_interactive' => 0,
 				'rfc1991' => 1,
-				'extra_args' => [ "--no-default-keyring",
-						  "--keyring", "$gpgring",
-						  "--keyring", "$pgpring",
-						  "--always-trust"
-						]
+				'extra_args' => [ @gpg_args ]
 			      );
     my $pid;
 

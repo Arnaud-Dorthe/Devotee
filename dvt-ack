@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri May 16 12:01:16 2003
+# Last Modified On : Fri Oct 17 03:08:37 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 68
+# Update Count     : 69
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -119,8 +119,13 @@ sub send_mail {
 				   );
 
   my $gnupg = GnuPG::Interface->new();
-  # well, we should really create the extra args array depending on
-  # what is defined.
+
+  my @gpg_args = ("--no-default-keyring", "--always-trust");
+  push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
+  push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
+  push (@gpg_args, "--keyring", "$pubring") if  $pubring;
+  push (@gpg_args, "--secret-keyring", "$secring") if  $secring;
+
   $gnupg->options->hash_init( 'no_options' => 1,
 			      'armor'   => 1,
 			      'homedir' => $topdir,
@@ -128,13 +133,7 @@ sub send_mail {
 			      'meta_interactive' => 0,
 						"verbose" => 1,
 						"always_trust" => 1,
-			      'extra_args' => [ 
-						"--no-default-keyring",
-						"--secret-keyring", "$secring",
-						"--keyring", "$pubring",
-						"--keyring", "$gpgring",
-						"--keyring", "$pgpring"
-					      ]
+			      'extra_args' => [ @gpg_args ]
 			    );
   # indicate our pasphrase through the convience method
   $gnupg->passphrase( $passphrase );

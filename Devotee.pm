@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri May 16 11:57:29 2003
+# Last Modified On : Thu Oct 16 22:44:43 2003
 # Last Machine Used: glaurung.green-gryphon.com
-# Update Count     : 220
+# Update Count     : 230
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -305,6 +305,7 @@ Specify the base for the LDAP query
 		  'help'         => sub {print Devotee->Usage();      exit 0;},
 		  'ldap_base=s'  => sub {$::ConfOpts{"Ldap_Base"}  = "$_[1]";},
 		  'ldap_host=s'  => sub {$::ConfOpts{"Ldap_Host"}  = "$_[1]";},
+		  'ldap_filter=s'=> sub {$::ConfOpts{"Ldap_Filter"}= "$_[1]";},
 		  'mkdir!'       => sub {$::ConfOpts{"Create_Dirs"}= "$_[1]";},
 		  'm'            => sub {$::ConfOpts{"Create_Dirs"}= "$_[1]";},
 		  'need_gpg!'    => sub {$::ConfOpts{"Need_GPG"}   = "$_[1]";},
@@ -318,6 +319,9 @@ Specify the base for the LDAP query
 		  'secret!'      => sub {$::ConfOpts{"Secret"}     = "$_[1]";},
 		  's'            => sub {$::ConfOpts{"Secret"}     = "$_[1]";},
 		  'top_dir=s'    => sub {$::ConfOpts{"Top_Dir"}    = "$_[1]";},
+		  'quorum_out=s' => sub {$::ConfOpts{"Quorum_File"}= "$_[1]";},
+		  'quorum_detail=s' => sub {$::ConfOpts{"Quorum_Details"}= "$_[1]";},
+		  'quorum_err=s' => sub {$::ConfOpts{"Quorum_Error"}= "$_[1]";},
 		 },
      Usage    => qq(Usage: $main::MYNAME [options]
 Author: $main::Author <$main::AuthorMail>
@@ -349,6 +353,10 @@ Version $main::Version
  --password  <passwd>  Specify the pass phrase for the private keyring
  --ldap_host <HOST>    Specify the LDAP host to contact to validate votes
  --ldap_base <BASESTR> Specify the base for the LDAP query
+ --ldap_base <FILTER>  Specify the filter ot use for checking with LDAP
+ --quorum_out <FILE>   Specify the file name where calculated quorum shall be kept
+ --quorum_err <FILE>   Specify the file name where information of missing keys is kept
+ --quorum_detail <FILE>Specify the file name where details of the quorum shall be kept
 ),
      Defaults => {
 		  "Body_Suffix" => 'body',
@@ -358,11 +366,12 @@ Version $main::Version
 		  "Info_Suffix" => 'info',
 		  "Ldap_Base"   => "dc=debian,dc=org",
 		  "Ldap_Host"   => "db.debian.org",
+		  "Ldap_Filter" => "(gidnumber=800)",
 		  "Lock_Suffix" => 'lock',
 		  "Max_Choices" => 0,
 		  "Msg_Preffix" => 'msg',
 		  "Msg_Suffix"  => 'raw',
-		  "Secret"    	=> 1,
+		  "Secret"      => 1,
 		  "Sig_Suffix"  => 'sig',
 		  "Need_GPG"    => 1,
 		  "Need_PGP"    => 1,
@@ -381,8 +390,11 @@ Version $main::Version
 		  "Option_11"   => "",
 		 },
      Files   => {
-		  "Alias_DB"  => "AliasDB", # Only needed if secret
-		  "Replay_DB" => "ReplayDB",# only if need gpg or need pgp
+		  "Alias_DB"       => "AliasDB",   # Only needed if secret
+		  "Replay_DB"      => "ReplayDB",  # only if need gpg or need pgp
+		  "Quorum_File"    => "quorum.txt",# Where the quorum is written to
+		  "Quorum_Details" => "quorum.log",# Where the quorum is written to
+		  "Quorum_Error"   => "quorum.err",# Where the quorum is written to
 		},
      SubDirs => {
 		 "Ack_Dir"      => "ack",
