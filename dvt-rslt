@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 02:51:51 2005
+# Last Modified On : Fri Apr  8 11:53:37 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 135
+# Update Count     : 138
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -470,7 +470,7 @@ EOM
   open (GRAPH, ">$graph") || die "Could not open $graph:$!";
   chmod 0660, "$graph";
   # The header. This is a directed graph.
-  print GRAPH "digraph Results {\n";
+  print GRAPH "digraph Results {\n  ranksep=0.25;\n";
   foreach my $i (0..($max_choices - 1)) {
     # At this point, the Schwartz set is in place and contains all the
     # winners (who get a different color fill)
@@ -492,22 +492,13 @@ EOM
       if ($Beat_Matrix[$i][$max_choices - 1] >= $K) {
         # it met quorum, but still was dropped.
         # probably since it did not meet majority
-        my $win;
         my $label = $Beat_Matrix[$max_choices -1][$i] - 
           $Beat_Matrix[$i][$max_choices -1];
-        $win = $label;
-
-        if ($win > 0) {
-          print GRAPH " \"", $Config{"Option_" . $max_choices}, "\" -> \"",
-            $Config{"Option_" . ($i + 1)}, "\" [ weight=",
-              int(1000/($win)),  ", label=\"$label\" ];\n";
-        }
-        else {
-          print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" -> \"",
-            $Config{"Option_" . $max_choices}, "\" [ weight=",
-              int(-1000/($win)),  ", label=\"", -1 * $label, 
-                "\" ];\n";
-        }
+        # my $win;
+        # $win = $label;
+        # "weight=", ((($win<0)?-1:1) * 1000/$win),
+        print GRAPH " \"", $Config{"Option_" . $max_choices}, "\" -> \"",
+          $Config{"Option_" . ($i + 1)}, "\" [ label=\"$label\" ];\n";
       }
     }
     foreach my $j (0..($max_choices - 1)) {
@@ -516,9 +507,10 @@ EOM
       #  have had all the weakest links removed, if needed, to resolve
       #  circular ties.
       if ($BeatPath{$i}{$j}{for}) {
-        my $win   = $BeatPath{$i}{$j}{for};
-        $win   -= $BeatPath{$j}{$i}{against}
-          if defined $BeatPath{$j}{$i}{against};
+        # my $win   = $BeatPath{$i}{$j}{for};
+        # $win   -= $BeatPath{$j}{$i}{against}
+        #  if defined $BeatPath{$j}{$i}{against};
+        # "weight=", (1000/$win),
 
         # We still use the simple two way contest margins to label the
         # edge, since anything else is likely to confuse people.
@@ -526,8 +518,7 @@ EOM
 
         # Print the edge information.
         print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" -> \"",
-          $Config{"Option_" . ($j + 1)}, "\" [ weight=",
-            int(1000/($win)),  ", label=\"$label\" ];\n";
+          $Config{"Option_" . ($j + 1)}, "\" [ label=\"$label\" ];\n";
       }
     }
   }

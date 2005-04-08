@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 11:35:33 2005
+# Last Modified On : Fri Apr  8 04:26:21 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 127
+# Update Count     : 129
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -445,7 +445,7 @@ sub verify_messages {
         $text = "There was a problem verifying the signature on the ballot.\n";
         $text   .=  "-=" x 35;
         $text   .= "\n";
-        $text   .= join "", grep { m/^\s*gpg:/ } @result;
+        $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
         $text   .= "\n";
         $text   .= join "", @status;
         $text   .=  "-=" x 35;
@@ -464,7 +464,7 @@ sub verify_messages {
       $text = "There was a problem verifying the signature on the ballot.\n";
       $text   .=  "-=" x 35;
       $text   .= "\n";
-      $text   .= join "", grep { m/^\s*gpg:/ } @result;
+      $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
       $text   .= "\n";
       $text   .= join "", @status;
       $text   .=  "-=" x 35;
@@ -589,9 +589,9 @@ sub verify_messages {
       $text = "There was a problem verifying the signature on the ballot.\n";
       $text   .=  "-=" x 35;
       $text   .= "\n";
-      $text   .= join "", grep { m/^\s*gpg:/ } @result;
+      $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
       $text   .= "\n";
-      $text   .= join "", @status;
+      $text   .= join "\n", @status;
       $text   .=  "-=" x 35;
       $text   .= "\n\n";
 
