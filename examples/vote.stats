@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 19 13:02:10 2005
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Apr  5 11:02:42 2005
+# Last Modified On : Sat Apr  9 22:41:50 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 24
+# Update Count     : 25
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -148,8 +148,10 @@ for ballot in $ballots; do
         position_graph="\
 	<tr class=\"Ignored\">
 	  <td  align=\"center\" colspan=\"6\">
-	     <img src=\"${vote}_results.png\" alt=\"Graph of the
-		standings of the candidates\">
+             <a href=\"${vote}_results.dot\">
+	       <img src=\"${vote}_results.png\" alt=\"Graph of the
+		  standings of the candidates\">
+             </a>
 	  </td>
 	</tr>
 "
