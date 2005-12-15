@@ -150,7 +150,7 @@ sub ldap_info {
   my $force       = $Config{'Force'};
 
   my $ldap = new Net::LDAP($ldaphost, "debug" => 0,
-                           "version" => '2',
+                           "version" => '3',
                            "onerror" => \&onerror ) or 
                              die "Failed to create LDAP Handle for $ldaphost: $@";
   $ldap->bind ();
