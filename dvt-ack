@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 23:20:54 2005
+# Last Modified On : Thu Dec 22 23:22:49 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 95
+# Update Count     : 96
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -388,21 +388,6 @@ sub send_ack {
                         'Configuration' => $dvt
                        );
     }
-    $ret = &send_encrypted_mail('Destination'   => "$from",
-                                'Subject'       => "$subject",
-                                'Body'          => "$body",
-                                'Message'       => "$msg",
-                                'Sig Dir'       => "$sigdir",
-                                'Top Dir'       => "$topdir",
-                                'SEC Ring'      => "$secring",
-                                'PUB Ring'      => "$pubring",
-                                'GPG Ring'      => "$gpgring",
-                                'PGP Ring'      => "$pgpring",
-                                'Pass Word'     => "$passphrase",
-                                'Name'          => $Config{"Vote_Taker_Name"},
-                                'Email'         => $Config{"Vote_Taker_EMAIL"},
-                                'Configuration' => $dvt
-                               );
     if (!$ret) {
       $dvt->log_message($msg, "Error sending mail");
       next;
