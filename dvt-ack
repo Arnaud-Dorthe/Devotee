@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 22:48:56 2005
+# Last Modified On : Thu Dec 22 23:11:29 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 84
+# Update Count     : 94
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -96,25 +96,75 @@ sub send_mail {
     defined $params{'Name'};
   die "Required parameter 'Email' missing" unless
     defined $params{'Email'};
+  die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
+
 
   my $sigdir     = $params{'Sig Dir'} if defined $params{'Sig Dir'};
-  my $tallydir   = $params{'Tally Dir'} if defined $params{'Tally Dir'};
+  my $topdir     = $params{'Top Dir'} if defined $params{'Top Dir'};
+  my $dvt        = $params{'Configuration'};
+
+  my $msg = $params{'Message'};
+  # Grab the keyid we stashed away before, while verifying the sig
+  if (-r "$sigdir/$msg") {
+    my $ret = open(KEYID, "$sigdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error reading uid from $sigdir/$msg:$!");
+      return 0;
+    }
+  } else {
+    $dvt->log_message($msg, "No keyid found in $sigdir / $msg");
+    return 0;
+  }
+
+  my $text=<<EOH;
+From: $params{'Email'}
+To: $params{'Destination'}
+Reply-To: $params{'Email'}
+Bcc: $params{'Email'}
+Subject: $params{'Subject'}
+
+$params{'Body'};
+
+EOH
+  ;
+  open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
+  # open(MAIL, ">>Acks")                  || die "Cannot open sendmail";
+  print MAIL $text;
+  close(MAIL);
+  return $text;
+}
+
+
+sub send_encrypted_mail {
+  my %params = @_;
+
+  die "Required parameter 'Destination' missing" unless
+    defined $params{'Destination'};
+  die "Required parameter 'Subject' missing" unless
+    defined $params{'Subject'};
+  die "Required parameter 'Body' missing" unless
+    defined $params{'Body'};
+  die "Required parameter 'Message' missing" unless
+    defined $params{'Message'};
+  die "Required parameter 'Name' missing" unless
+    defined $params{'Name'};
+  die "Required parameter 'Email' missing" unless
+    defined $params{'Email'};
+
+  die "Required paramter 'SEC Ring' missing" unless $params{'SEC Ring'};
+  die "Required paramter 'PUB Ring' missing" unless $params{'PUB Ring'};
+  die "Required paramter 'GPG Ring' missing" unless $params{'GPG Ring'};
+  die "Required paramter 'PGP Ring' missing" unless $params{'PGP Ring'};
+  die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
+
+  my $sigdir     = $params{'Sig Dir'} if defined $params{'Sig Dir'};
   my $topdir     = $params{'Top Dir'} if defined $params{'Top Dir'};
 
-  my ($secring, $pubring, $gpgring, $pgpring, $passphrase) = ();
-
-  if (1)  {
-    die "Required paramter 'SEC Ring' missing" unless $params{'SEC Ring'};
-    die "Required paramter 'PUB Ring' missing" unless $params{'PUB Ring'};
-    die "Required paramter 'GPG Ring' missing" unless $params{'GPG Ring'};
-    die "Required paramter 'PGP Ring' missing" unless $params{'PGP Ring'};
-    die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
-    $secring    = $params{'SEC Ring'} if defined $params{'SEC Ring'};
-    $pubring    = $params{'PUB Ring'} if defined $params{'PUB Ring'};
-    $gpgring    = $params{'GPG Ring'} if defined $params{'GPG Ring'};
-    $pgpring    = $params{'PGP Ring'} if defined $params{'PGP Ring'};
-    $passphrase = $params{'Pass Word'} if defined $params{'Pass Word'};
-  }
+  my $secring    = $params{'SEC Ring'} if defined $params{'SEC Ring'};
+  my $pubring    = $params{'PUB Ring'} if defined $params{'PUB Ring'};
+  my $gpgring    = $params{'GPG Ring'} if defined $params{'GPG Ring'};
+  my $pgpring    = $params{'PGP Ring'} if defined $params{'PGP Ring'};
+  my $passphrase = $params{'Pass Word'} if defined $params{'Pass Word'};
   my $dvt        = $params{'Configuration'};
 
 
@@ -123,7 +173,7 @@ sub send_mail {
   if (-r "$sigdir/$msg") {
     my $ret = open(KEYID, "$sigdir/$msg");
     if (!$ret) {
-      $dvt->log_message($msg, "Error reading uid from $tallydir/$msg:$!");
+      $dvt->log_message($msg, "Error reading uid from $sigdir/$msg:$!");
       return 0;
     }
   } else {
@@ -245,7 +295,6 @@ sub send_ack {
 
   my $topdir      = $Config{'Top_Dir'};
   my $workdir     = $Config{'Work_Dir'};
-  my $tallydir    = $Config{'Tally_Dir'};
   my $ackdir      = $Config{'Ack_Dir'};
   my $sigdir      = $Config{'Sig_Dir'};
   my $tmpdir      = $Config{'Temp_Dir'};
@@ -310,23 +359,50 @@ sub send_ack {
     }
 
     my $subject = "Acknowledgement for your vote";
-
-    $ret = &send_mail('Destination'   => "$from",
-                      'Subject'       => "$subject",
-                      'Body'          => "$body",
-                      'Message'       => "$msg",
-                      'Sig Dir'       => "$sigdir",
-                      'Tally Dir'     => "$tallydir",
-                      'Top Dir'       => "$topdir",
-                      'SEC Ring'      => "$secring",
-                      'PUB Ring'      => "$pubring",
-                      'GPG Ring'      => "$gpgring",
-                      'PGP Ring'      => "$pgpring",
-                      'Pass Word'     => "$passphrase",
-                      'Name'          => $Config{"Vote_Taker_Name"},
-                      'Email'         => $Config{"Vote_Taker_EMAIL"},
-                       'Configuration' => $dvt
-                     );
+    if ($Config{"Pass_Word"}) {
+      $ret = &send_encrypted_mail('Destination'   => "$from",
+                                  'Subject'       => "$subject",
+                                  'Body'          => "$body",
+                                  'Message'       => "$msg",
+                                  'Sig Dir'       => "$sigdir",
+                                  'Top Dir'       => "$topdir",
+                                  'SEC Ring'      => "$secring",
+                                  'PUB Ring'      => "$pubring",
+                                  'GPG Ring'      => "$gpgring",
+                                  'PGP Ring'      => "$pgpring",
+                                  'Pass Word'     => "$passphrase",
+                                  'Name'          => $Config{"Vote_Taker_Name"},
+                                  'Email'         => $Config{"Vote_Taker_EMAIL"},
+                                  'Configuration' => $dvt
+                                 );
+    }
+    else {
+      $ret = &send_mail('Destination'   => "$from",
+                        'Subject'       => "$subject",
+                        'Body'          => "$body",
+                        'Message'       => "$msg",
+                        'Sig Dir'       => "$sigdir",
+                        'Top Dir'       => "$topdir",
+                        'Name'          => $Config{"Vote_Taker_Name"},
+                        'Email'         => $Config{"Vote_Taker_EMAIL"},
+                        'Configuration' => $dvt
+                       );
+    }
+    $ret = &send_encrypted_mail('Destination'   => "$from",
+                                'Subject'       => "$subject",
+                                'Body'          => "$body",
+                                'Message'       => "$msg",
+                                'Sig Dir'       => "$sigdir",
+                                'Top Dir'       => "$topdir",
+                                'SEC Ring'      => "$secring",
+                                'PUB Ring'      => "$pubring",
+                                'GPG Ring'      => "$gpgring",
+                                'PGP Ring'      => "$pgpring",
+                                'Pass Word'     => "$passphrase",
+                                'Name'          => $Config{"Vote_Taker_Name"},
+                                'Email'         => $Config{"Vote_Taker_EMAIL"},
+                                'Configuration' => $dvt
+                               );
     if (!$ret) {
       $dvt->log_message($msg, "Error sending mail");
       next;

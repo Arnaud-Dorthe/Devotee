@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 22:27:17 2005
+# Last Modified On : Thu Dec 22 23:08:52 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 249
+# Update Count     : 250
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -444,6 +444,7 @@ Version $main::Version
 		  "Msg_Preffix"      => 'msg',
 		  "Msg_Suffix"       => 'raw',
 		  "Secret"           => 1,
+		  "Encrypted_Ack"    => 1,
                   "Vote_Taker_Name"  => "Debian Project Secretary",
                   "Vote_Taker_EMAIL" => "secretary\@debian.org",
 		  "Sig_Suffix"       => 'sig',
