@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 22:15:41 2005
+# Last Modified On : Thu Dec 22 22:48:56 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 83
+# Update Count     : 84
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -324,7 +324,7 @@ sub send_ack {
                       'PGP Ring'      => "$pgpring",
                       'Pass Word'     => "$passphrase",
                       'Name'          => $Config{"Vote_Taker_Name"},
-                      'Email'         => $Config{"Vote_Taker_EMAIL"}
+                      'Email'         => $Config{"Vote_Taker_EMAIL"},
                        'Configuration' => $dvt
                      );
     if (!$ret) {
