@@ -1,9 +1,25 @@
+#!/bin/sh
+#                               -*- Mode: Sh -*- 
+# start-vote --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Fri Dec 23 11:17:09 2005
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri Dec 23 11:19:34 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 1
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
 # arch-tag: e2f2887b-0f66-47b7-8164-dc4991d08fb4
+VOTE=$1
 
-cd /org/vote\.debian\.org/data/leader2005 || {
-         echo 'Execution directory inaccessible' >&2
-         exit 1
-}
-cp forward /org/vote.debian.org/mail/.forward-leader2005
-/usr/bin/crontab $HOME/etc/crontab
+CRON_DIR=/debian/home/srivasta/etc
+MAIL_DIR=/org/vote.debian.org/mail
+WORK_DIR=/org/vote.debian.org/data/${VOTE}
+
+cp ${WORK_DIR}/forward ${MAIL_DIR}/.forward-${VOTE}
+/usr/bin/crontab ${CRON_DIR}/crontab
 

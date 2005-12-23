@@ -1,19 +1,46 @@
+#!/bin/sh
+#                               -*- Mode: Sh -*- 
+# end-vote --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Fri Dec 23 11:01:53 2005
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Fri Dec 23 11:18:50 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 8
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
 # arch-tag: 77986266-17e2-4fe1-9000-2a7029a04e14
 
-VOTE=leader2005
+VOTE=$1
 
-cp -f /debian/home/srivasta/etc/crontab             /debian/home/srivasta/etc/crontab.old
-cp -f /debian/home/srivasta/etc/crontab.novote      /debian/home/srivasta/etc/crontab
-/usr/bin/crontab /debian/home/srivasta/etc/crontab
+# Locations for the vote
+CRON_DIR=/debian/home/srivasta/etc
+MAIL_DIR=/org/vote.debian.org/mail
+BIN_DIR=/org/vote.debian.org/bin
+BALLOT_DIR=/org/vote.debian.org/ballots
+HTML_DIR=/debian/home/srivasta/public_html
+WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
-cp -f /org/vote.debian.org/mail/.disabled           /org/vote.debian.org/mail/.forward-${VOTE}
+# Stop running devotee n cron
+cp -f ${CRON_DIR}/crontab             ${CRON_DIR}/crontab.old
+cp -f ${CRON_DIR}/crontab.novote      ${CRON_DIR}/crontab
+/usr/bin/crontab ${CRON_DIR}/crontab
 
-mv -f /org/vote.debian.org/ballots/${VOTE}.blt      /org/vote.debian.org/ballots/${VOTE}.old
+# Stop accepting ballots
+cp -f ${MAIL_DIR}/.disabled           ${MAIL_DIR}/.forward-${VOTE}
 
-/org/vote.debian.org/bin/dvt-cron ${VOTE} 
-/debian/home/srivasta/bin/vote.stats
+# Do final calculations
+FINAL_TALLY=YES
+export FINAL_TALLY
+${BIN_DIR}/dvt-cron ${VOTE} 
+${BIN_DIR}/vote.stats
 
-cp -f /org/vote.debian.org/data/${VOTE}/results.txt /debian/home/srivasta/public_html/${VOTE}_results.txt
-cp -f /org/vote.debian.org/data/${VOTE}/results.png /debian/home/srivasta/public_html/${VOTE}_results.png
-cp -f /org/vote.debian.org/data/${VOTE}/tally.txt   /debian/home/srivasta/public_html/${VOTE}_tally.txt
-chmod -R +r /debian/home/srivasta/public_html/
+# Disable the ballot
+mv -f ${BALLOT_DIR}/${VOTE}.blt      ${BALLOT_DIR}/${VOTE}.old
+
+chmod -R +r ${HTML_DIR}
