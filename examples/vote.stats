@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 19 13:02:10 2005
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat Apr  9 22:41:50 2005
+# Last Modified On : Thu Dec 22 22:36:58 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 25
+# Update Count     : 26
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -41,7 +41,7 @@ basedir=/org/vote.debian.org/
 BALLOTDIR=$basedir/ballots/
 datadir=$basedir/data/
 html_dir="$HOME/public_html"
-
+TEMP_DIR="$HOME/tmp"
 
 ballots=$(find $BALLOTDIR -type f -name \*.blt);
 
@@ -57,7 +57,7 @@ for ballot in $ballots; do
     end_time=$(egrep ^End_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
 
     
-    scratchdir="$HOME/tmp/${vote}"
+    scratchdir="$TEMP_DIR/${vote}"
     if [ ! -d "$scratchdir" ]; then
         mkdir -p "$scratchdir"
     fi
@@ -297,7 +297,7 @@ set xlabel \"Date/Time (UTC)\"
 set key left top 
 
 set ylabel \"Ballots\"
-set terminal png small color
+set terminal png small 
 
 #set grid mxtics mytics
 set grid 

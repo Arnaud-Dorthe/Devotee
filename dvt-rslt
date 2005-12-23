@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Apr  8 11:53:37 2005
+# Last Modified On : Thu Dec 15 09:27:02 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 138
+# Update Count     : 139
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -110,7 +110,7 @@ sub winner {
 
   # OK. Start creating an output file.
   open (RESULTS, ">$results") || die "Could not open $results:$!";
-  chmod 0660, "$results";
+  chmod $Config{"File_Mask"}, "$results";
 
   my $now_string = gmtime;
   print RESULTS "Starting results calculation at $now_string\n\n";
@@ -468,7 +468,7 @@ EOM
   }
   # Create the graphical results file in dot format.
   open (GRAPH, ">$graph") || die "Could not open $graph:$!";
-  chmod 0660, "$graph";
+  chmod $Config{"File_Mask"}, "$graph";
   # The header. This is a directed graph.
   print GRAPH "digraph Results {\n  ranksep=0.25;\n";
   foreach my $i (0..($max_choices - 1)) {
@@ -562,7 +562,7 @@ Manoj Srivastava <srivasta@debian.org>
 
 This script is a part of the Devotee package, and is 
 
-Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+Copyright (c) 2002, 2003, 2004, 2005  Manoj Srivastava <srivasta@debian.org>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

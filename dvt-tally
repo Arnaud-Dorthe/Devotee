@@ -101,7 +101,7 @@ sub create_tally {
   closedir(TALLY);
 
   my %Moniker;
-  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, 0660,
+  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, $Config{"File_Mask"},
     $DB_HASH or die "Cannot open file $aliasdb: $!\n" ;
 
   my %votes=();
@@ -145,7 +145,7 @@ sub create_tally {
   if ($Config{Final_Tally}) {
     open (TALLY, ">$tallyfile") ||
       die "Could not open $tallyfile for writing:$!";
-    chmod 0660, "$tallyfile";
+    chmod $Config{"File_Mask"}, "$tallyfile";
   } else {
     open (TALLY, ">$dummyfile") ||
       die "Could not open $dummyfile for writing:$!";

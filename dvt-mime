@@ -166,7 +166,7 @@ sub demime_messages {
         $dvt->log_message($msg, "Could not create sig file $msg_sig");
         next;
       }
-      chmod 0660, "$bodydir/$msg_sig";
+      chmod $Config{"File_Mask"}, "$bodydir/$msg_sig";
       $entity->parts(1)->print_body(\*SIG);
       close(SIG);
 
@@ -181,7 +181,7 @@ sub demime_messages {
           $dvt->log_message($msg, "Could not create sig file $msg_body");
           next;
         }
-        chmod 0660, "$bodydir/$msg_body";
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
         print DATA $data;
         close(DATA);
         # Fix the data for the real file
@@ -193,7 +193,7 @@ sub demime_messages {
         $dvt->log_message($msg, "Could not create sig file $msg_body");
         next;
       }
-      chmod 0660, "$bodydir/$msg_body";
+      chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
       print DATA $data;
       close(DATA);
     }                           # Try to handle any encrypted messages
@@ -207,7 +207,7 @@ sub demime_messages {
         $dvt->log_message($msg, "Could not create file $msg_encrypted");
         next;
       }
-      chmod 0660, "$bodydir/$msg_encrypted";
+      chmod $Config{"File_Mask"}, "$bodydir/$msg_encrypted";
       $entity->parts(1)->print_body(\*MSG);
       close(MSG);
     }
@@ -219,7 +219,7 @@ sub demime_messages {
           $dvt->log_message($msg, "Could not create file $msg_body");
           next;
         }
-        chmod 0660, "$bodydir/$msg_body";
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
         #  Massage body here. 
         #
         #  We eliminate every scrap of the message
@@ -238,7 +238,7 @@ sub demime_messages {
           $dvt->log_message($msg, "Could not create sig file $msg_encrypted");
           next;
         }
-        chmod 0660, "$bodydir/$msg_encrypted";
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_encrypted";
         #  Massage body here. 
         #
         #  We eliminate every scrap of the message
@@ -257,7 +257,7 @@ sub demime_messages {
           $dvt->log_message($msg, "Could not create file $msg_body");
           next;
         }
-        chmod 0660, "$bodydir/$msg_body";
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
         print DATA $msg_bodytxt;
         close(DATA);
          next;

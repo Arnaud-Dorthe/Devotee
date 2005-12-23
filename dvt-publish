@@ -1,0 +1,144 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Cperl -*- 
+# dvt-publish --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Wed Dec 14 21:52:17 2005
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Thu Dec 15 09:33:40 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 5
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+#
+# arch-tag: 0f0a6968-e337-447a-a74a-3ca9e0508a07
+
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+
+
+=head1 NAME
+
+dvt-publish - Given the results, voter logs, and tally sheet, send a signed message
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-publish -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine is designed to allow publication of the results by
+putting together a signed email message and sending it off to the
+configured address.
+
+It reads the tally sheet produced by dvt-tally, and the output file
+produced by dvr-rslt, and creates a MIME message that has the results
+text, the tally sheet, and, if it is a secret ballot, the list of
+voters. It then signs the email, and send it to the list of configured
+targets.
+
+=cut
+
+=head2 Internal Implementation
+
+=head3 publish
+
+This is the workhorse routine. 
+This routine pays attention to the configuration variables
+Quorum_File, Tally_File, Max_Choices, and Results.
+
+=cut
+
+sub publish {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+
+}
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  &publish('Configuration' => $dvt);
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002, 2003, 2004, 2005 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

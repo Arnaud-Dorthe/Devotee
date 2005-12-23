@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 03:39:10 2005
+# Last Modified On : Thu Dec 22 22:21:55 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 52
+# Update Count     : 53
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -123,7 +123,7 @@ sub ldap_callback {
     die "Could not open output file $ldapdir/$msg:$!";
 
 
-  chmod 0660, "$ldapdir/$msg";
+  chmod $params{"File_Mask"}, "$ldapdir/$msg";
   print LDAP "uid: $uid\n";
   print LDAP "cn: $cn\n" if $cn;
   print LDAP "sn: $sn\n" if $sn;

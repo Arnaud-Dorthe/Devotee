@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 17:59:36 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:28:03 2004
+# Last Modified On : Thu Dec 22 22:17:37 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 45
+# Update Count     : 50
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -84,15 +84,20 @@ sub send_mail {
     defined $params{'Destination'};
   die "Required parameter 'Subject' missing" unless
     defined $params{'Subject'};
-  die "Required parameter 'BGody' missing" unless
+  die "Required parameter 'Body' missing" unless
     defined $params{'Body'};
+  die "Required parameter 'Name' missing" unless
+    defined $params{'Name'};
+  die "Required parameter 'Email' missing" unless
+    defined $params{'Email'};
 
   open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
   # open(MAIL, ">>Nacks")                 || die "Cannot open sendmail";
   print MAIL <<EOH;
-From: secretary\@debian.org
+From: $params{'Email'}
 To: $params{'Destination'}
-Bcc: secretary\@debian.org
+Reply-To: $params{'Email'}
+Bcc: $params{'Email'}
 Subject: $params{'Subject'}
 
 Hi,
@@ -100,7 +105,7 @@ Hi,
 $params{'Body'}
 
 -- 
-Debian Project secretary (secretary\@debian.org)
+$params{'Name'} $params{'Email'} 
 
 EOH
   ;
@@ -186,13 +191,16 @@ sub send_nack {
 
     &send_mail('Destination' => "$from",
                'Subject'     => "$subject",
-               'Body'        => "$body");
+               'Body'        => "$body",
+               'Name'        => $Config{"Vote_Taker_Name"},
+               'Email'       => $Config{"Vote_Taker_EMAIL"}
+              );
     $ret = open(SENT, ">>$nackdir/$msg_base.sent");
     if (!$ret) {
       &log_message($msg, "Error logging mesage $nackdir/$msg_base.sent:$!");
       next;
     }
-    chmod 0660, "$nackdir/$msg_base.sent";
+    chmod $Config{"File_Mask"}, "$nackdir/$msg_base.sent";
     print SENT "Sent NACK to $from at $now_string\n";
     close SENT;
   }

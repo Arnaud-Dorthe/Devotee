@@ -5,9 +5,9 @@
 # Created On       : Mon Mar 25 12:26:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 03:42:23 2005
+# Last Modified On : Thu Dec 22 22:20:45 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 84
+# Update Count     : 87
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -83,7 +83,7 @@ Body_Dir, Msg_Suffix, Msg_Preffix, Force, and Temp_Dir.
 # Recursive routine for dumping an entity.
 #
 sub dump_entity {
-  my ($dvt, $bodydir, $msg, $entity) = @_;
+  my ($dvt, $bodydir, $msg, $entity, $mask) = @_;
   my $IO;
 
   # Output the body:
@@ -91,7 +91,7 @@ sub dump_entity {
   if (@parts) {                 # multipart...
     my $i;
     foreach $i (0 .. $#parts) { # dump each part...
-      dump_entity($dvt, $bodydir, $msg, $parts[$i]);
+      dump_entity($dvt, $bodydir, $msg, $parts[$i], $mask);
     }
   } else {                      # single part...
     # Get MIME type, and display accordingly...
@@ -104,7 +104,7 @@ sub dump_entity {
           $dvt->log_message($msg, "Could not create output $bodydir/$msg");
           return;
         }
-        chmod 0660, "$bodydir/$msg";
+        chmod $mask, "$bodydir/$msg";
         print DATA $_ while (defined($_ = $IO->getline));
         $IO->close;
         close DATA;
@@ -120,7 +120,7 @@ sub dump_entity {
             $dvt->log_message($msg, "Could not create output $bodydir/$msg");
             return;
           }
-          chmod 0660, "$bodydir/$msg";
+          chmod $mask, "$bodydir/$msg";
           print DATA $_ while (defined($_ = $IO->getline));
           $IO->close;
           close DATA;
@@ -199,7 +199,7 @@ sub extract_messages {
         $dvt->log_message($msg, "Could not create output $bodydir/$msg");
         return;
       }
-      chmod 0660, "$bodydir/$msg";
+      chmod $Config{"File_Mask"}, "$bodydir/$msg";
       while (<IN>) {
         print DATA $_;
       }
@@ -219,7 +219,7 @@ sub extract_messages {
         next;
       }
 
-      dump_entity($dvt, $bodydir, $msg, $entity);
+      dump_entity($dvt, $bodydir, $msg, $entity, $Config{"File_Mask"});
     }
   }
 }

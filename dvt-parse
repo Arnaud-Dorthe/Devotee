@@ -173,7 +173,7 @@ sub parse_messages {
       if (!$ret) {
         $dvt->log_message($msg, "Could not open $tallydir/$msg:$!");
       }
-      chmod 0660, "$tallydir/$msg";
+      chmod $Config{"File_Mask"}, "$tallydir/$msg";
       print TALLY $tally;
       close TALLY;
     } else {
@@ -186,7 +186,7 @@ sub parse_messages {
       if (!$ret) {
         $dvt->log_message($msg, "Could not open $nackdir/$msg:$!");
       }
-      chmod 0660, "$nackdir/$msg";
+      chmod $Config{"File_Mask"}, "$nackdir/$msg";
       print NACK "There was an error parsing your ballot.\n";
       print NACK "-=" x 35, "\n";
       print NACK $text if $text;

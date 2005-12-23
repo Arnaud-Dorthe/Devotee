@@ -248,7 +248,7 @@ sub verify_messages {
   }
 
   my %Replay;
-  my $replay_ref = tie %Replay, 'DB_File', $replaydb, O_RDWR|O_CREAT, 0660,
+  my $replay_ref = tie %Replay, 'DB_File', $replaydb, O_RDWR|O_CREAT, $Config{"File_Mask"},
     $DB_HASH or die "Cannot open file $replaydb: $!\n" ;
 
 
@@ -334,7 +334,7 @@ sub verify_messages {
       if (defined $Replay{"$radix"}) {
         open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
           die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
         print NACK "The signature on the message, though valid, has been\n";
         print NACK "seen before.  This could be a potential replay attack\n";
         print NACK "-=" x 35;
@@ -350,12 +350,12 @@ sub verify_messages {
         $Replay{"$radix"} = $text;
         open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$checkdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
         print GOOD $fingerprint, "\n";
         close GOOD;
         open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$sigdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
         print SIG $keyid, "\n";
         close SIG;
       }
@@ -428,12 +428,12 @@ sub verify_messages {
         # replaydb, so no point in checking.
         open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$checkdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
         print GOOD $fingerprint, "\n";
         close GOOD;
         open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$sigdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
         print SIG $keyid, "\n";
         close SIG;
         # record the fact that we succeeded on a line-ending mangled version.
@@ -452,7 +452,7 @@ sub verify_messages {
         $text   .= "\n\n";
         open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
           die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
         print NACK $text;
         print NACK "\tThis ballot is being rejected.\n\n";
         close NACK;
@@ -471,7 +471,7 @@ sub verify_messages {
       $text   .= "\n\n";
       open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
         die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
-      chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+      chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
       print NACK $text;
       print NACK "\tThis ballot is being rejected.\n\n";
       close NACK;
@@ -558,7 +558,7 @@ sub verify_messages {
       if ($radix && defined $Replay{"$radix"}) {
         open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
           die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
         print NACK "The signature on the message, though valid, has been\n";
         print NACK "seen before.  This could be a potential replay attack\n";
         print NACK "-=" x 35;
@@ -574,12 +574,12 @@ sub verify_messages {
         $Replay{"$radix"} = $text;
         open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$checkdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
         print GOOD $fingerprint, "\n";
         close GOOD;
         open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
           die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod 0660, "$sigdir/$msg_base.$msg_suffix";
+        chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
         print SIG $keyid, "\n";
         close SIG;
       }
@@ -597,7 +597,7 @@ sub verify_messages {
 
       open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
         die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
-      chmod 0660, "$nackdir/$msg_base.$msg_suffix";
+      chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
       print NACK $text;
       print NACK "\tThis ballot is being rejected.\n\n";
       close NACK;

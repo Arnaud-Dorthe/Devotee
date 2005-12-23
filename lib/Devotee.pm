@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Apr  4 20:53:32 2005
+# Last Modified On : Thu Dec 22 22:27:17 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 247
+# Update Count     : 249
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -432,6 +432,8 @@ Version $main::Version
                   "Body_Suffix"      => 'body',
                   "Common_Lock"      => 'lock',
                   "Create_Dirs"      => 0,
+                  "Dir_Mask"         => 0770,
+                  "File_Mask"        => 0660,
                   "Force"            => 0,
                   "Info_Suffix"      => 'info',
                   "Ldap_Base"        => "dc=debian,dc=org",
@@ -442,6 +444,8 @@ Version $main::Version
 		  "Msg_Preffix"      => 'msg',
 		  "Msg_Suffix"       => 'raw',
 		  "Secret"           => 1,
+                  "Vote_Taker_Name"  => "Debian Project Secretary",
+                  "Vote_Taker_EMAIL" => "secretary\@debian.org",
 		  "Sig_Suffix"       => 'sig',
                   "Encrypted_Suffix" => 'gpg',
                   "UUID"             => "",
@@ -482,10 +486,10 @@ Version $main::Version
 		},
      SubDirs => {
 		 "Ack_Dir"      => "ack",
-		 "Ballot_Dir"   => "ballot",
+		 "Ballot_Dir"   => "ballot", # Not needed
 		 "Body_Dir"     => "body",
 		 "Check_Dir"    => "check",
-		 "Content_Dir"  => "content",
+		 "Content_Dir"  => "content", # Not needed
 		 "LDAP_Dir"     => "ldap",
 		 "Log_Dir"      => "log",
 		 "Nack_Dir"     => "nack",
@@ -493,6 +497,7 @@ Version $main::Version
 		 "Spool_Dir"    => "spool",
 		 "Tally_Dir"    => "tally",
 		 "Temp_Dir"     => "tmp",
+                 "Time_Line"    => "timeline",
 		 "Work_Dir"     => "work",
 		},
     );
@@ -673,7 +678,7 @@ sub validate{
 	# Hmm. Directory does not exist
 	if ($this->{Con_Ref}->{"Create_Dirs"}) {
 	  # But we may create it
-	  mkdir $this->{Con_Ref}->{"$dir"}, 0775 || 
+	  mkdir $this->{Con_Ref}->{"$dir"}, $this->{Con_Ref}->{"Dir_Mask"} ||
 	    croak "Could not create dir $this->{Con_Ref}->{$dir}:$!";
 	} else {
 	  # Ah well.
@@ -847,7 +852,7 @@ sub log_message {
     $dolog = 0;
   }
   warn $message unless $dolog;
-  $dolog && chmod 0660, "$this->{Con_Ref}->{Log_Dir}/$msg";
+  $dolog && chmod $this->{"Con_Ref"}->{"File_Mask"}, "$this->{Con_Ref}->{Log_Dir}/$msg";
   $dolog && print LOG  $message;
   close(LOG);
 }

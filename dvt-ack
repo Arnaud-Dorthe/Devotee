@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Oct 14 18:21:27 2004
+# Last Modified On : Thu Dec 22 22:15:41 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 81
+# Update Count     : 83
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -92,20 +92,29 @@ sub send_mail {
     defined $params{'Body'};
   die "Required parameter 'Message' missing" unless
     defined $params{'Message'};
-  die "Required paramter 'SEC Ring' missing" unless $params{'SEC Ring'};
-  die "Required paramter 'PUB Ring' missing" unless $params{'PUB Ring'};
-  die "Required paramter 'GPG Ring' missing" unless $params{'GPG Ring'};
-  die "Required paramter 'PGP Ring' missing" unless $params{'PGP Ring'};
-  die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
+  die "Required parameter 'Name' missing" unless
+    defined $params{'Name'};
+  die "Required parameter 'Email' missing" unless
+    defined $params{'Email'};
 
   my $sigdir     = $params{'Sig Dir'} if defined $params{'Sig Dir'};
   my $tallydir   = $params{'Tally Dir'} if defined $params{'Tally Dir'};
   my $topdir     = $params{'Top Dir'} if defined $params{'Top Dir'};
-  my $secring    = $params{'SEC Ring'} if defined $params{'SEC Ring'};
-  my $pubring    = $params{'PUB Ring'} if defined $params{'PUB Ring'};
-  my $gpgring    = $params{'GPG Ring'} if defined $params{'GPG Ring'};
-  my $pgpring    = $params{'PGP Ring'} if defined $params{'PGP Ring'};
-  my $passphrase = $params{'Pass Word'} if defined $params{'Pass Word'};
+
+  my ($secring, $pubring, $gpgring, $pgpring, $passphrase) = ();
+
+  if (1)  {
+    die "Required paramter 'SEC Ring' missing" unless $params{'SEC Ring'};
+    die "Required paramter 'PUB Ring' missing" unless $params{'PUB Ring'};
+    die "Required paramter 'GPG Ring' missing" unless $params{'GPG Ring'};
+    die "Required paramter 'PGP Ring' missing" unless $params{'PGP Ring'};
+    die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
+    $secring    = $params{'SEC Ring'} if defined $params{'SEC Ring'};
+    $pubring    = $params{'PUB Ring'} if defined $params{'PUB Ring'};
+    $gpgring    = $params{'GPG Ring'} if defined $params{'GPG Ring'};
+    $pgpring    = $params{'PGP Ring'} if defined $params{'PGP Ring'};
+    $passphrase = $params{'Pass Word'} if defined $params{'Pass Word'};
+  }
   my $dvt        = $params{'Configuration'};
 
 
@@ -194,10 +203,10 @@ sub send_mail {
   #  4.  OpenPGP encrypted data
 
   my $text=<<EOH;
-From: secretary\@debian.org
+From: $params{'Email'}
 To: $params{'Destination'}
-Reply-To: secretary\@debian.org
-Bcc: secretary\@debian.org
+Reply-To: $params{'Email'}
+Bcc: $params{'Email'}
 Subject: $params{'Subject'}
 Mime-Version: 1.0
 Content-Type: multipart/encrypted; protocol="application/pgp-encrypted";
@@ -314,7 +323,9 @@ sub send_ack {
                       'GPG Ring'      => "$gpgring",
                       'PGP Ring'      => "$pgpring",
                       'Pass Word'     => "$passphrase",
-                      'Configuration' => $dvt
+                      'Name'          => $Config{"Vote_Taker_Name"},
+                      'Email'         => $Config{"Vote_Taker_EMAIL"}
+                       'Configuration' => $dvt
                      );
     if (!$ret) {
       $dvt->log_message($msg, "Error sending mail");
@@ -326,7 +337,7 @@ sub send_ack {
                         "Error logging mesage $ackdir/$msg_base.sent:$!");
       next;
     }
-    chmod 0660, "$ackdir/$msg_base.sent";
+    chmod $Config{'File_Mask'}, "$ackdir/$msg_base.sent";
     my $now_string = gmtime;
     print SENT "Sent ACK to $from at $now_string\n";
     print SENT "\n\n$ret\n\n";

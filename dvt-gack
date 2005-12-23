@@ -113,7 +113,7 @@ sub generate_ack {
     unlink $aliasdb;
   }
   my %Moniker;
-  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, 0660,
+  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, $Config{"File_Mask"},
     $DB_HASH or die "Cannot open file $aliasdb: $!\n" ;
 
   foreach my $msg (sort @messages) {
@@ -223,7 +223,7 @@ sub generate_ack {
       $dvt->log_message($msg, "Error creating $ackdir/$msg:$!");
       next;
     }
-    chmod 0660, "$ackdir/$msg";
+    chmod $Config{"File_Mask"}, "$ackdir/$msg";
     print CREATED "$body\n";
     close CREATED;
     chmod 0440, "$ackdir/$msg";

@@ -5,9 +5,9 @@
 # Created On       : Mon Oct 20 23:16:09 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Tue Apr  5 01:27:59 2005
+# Last Modified On : Thu Dec 22 22:00:29 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 8
+# Update Count     : 14
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -36,6 +36,8 @@ set -e
 
 basedir=/org/vote.debian.org/
 test -d $basedir || exit 1
+
+export PERLLIB=$basedir/bin
 
 BALLOTDIR=$basedir/ballots/
 
@@ -97,11 +99,23 @@ for ballot in $ballots; do
         echo Calculated results for $vote
 
         if [ -d $html_dir ]; then
-            cp -f $basedir/data/${vote}/voters.txt      $html_dir/${vote}_voters.txt;
-            cp -f $basedir/data/${vote}/dummy_tally.txt $html_dir/dummy_${vote}_tally.txt
+            if [ "X$FINAL_TALLY" != "X" ]; then
+                for i in voters.txt tally.txt results.txt results.dot quorum.txt; do
+                    cp -a     $basedir/data/$vote/$i      $html_dir/${vote}_${i}.new
+                    chmod +r  $html_dir/${vote}_${i}.new
+                    mv    -f  $html_dir/${vote}_${i}.new  $html_dir/${vote}_${i}
+                done
+            else
+                cp -f $basedir/data/${vote}/voters.txt      $html_dir/${vote}_voters.txt;
+                cp -f $basedir/data/${vote}/dummy_tally.txt $html_dir/dummy_${vote}_tally.txt
+                cp -f $basedir/data/${vote}/dummy_tally.txt $html_dir/${vote}_tally.txt
+            fi
         fi
-
-        uids=$(cd $basedir/data/$vote/ldap/; egrep ^uid: $(cd $basedir/data/$vote/tally; ls -1 *.raw) 2>/dev/null | sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
+        # uids=$(egrep -h ^uid: $basedir/data/$vote/tally/*.raw 2>/dev/null | \
+        #         sed -e 's/^uid://' | sort | uniq -c | wc -l);
+        uids=$(cd $basedir/data/$vote/ldap/;                                          \
+               egrep ^uid: $(cd $basedir/data/$vote/tally; ls -1 *.raw) 2>/dev/null | \
+               sed -e 's/^.*uid://' | sort | uniq -c | wc -l);
         tally=$(ls -1 $basedir/data/$vote/tally/*.raw 2>/dev/null | wc -l; )
         outfile=$basedir/data/${vote}/timeline/results.$(date +%s).txt
         outgraph=${outfile%%txt}dot
