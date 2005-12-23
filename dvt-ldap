@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 22:21:55 2005
+# Last Modified On : Fri Dec 23 07:59:51 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 53
+# Update Count     : 54
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -148,7 +148,7 @@ sub ldap_info {
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
   my $force       = $Config{'Force'};
-
+  my $mask        = $Config{'File_Mask'};
   my $ldap = new Net::LDAP($ldaphost, "debug" => 0,
                            "version" => '3',
                            "onerror" => \&onerror ) or 
@@ -184,6 +184,7 @@ sub ldap_info {
                                             'Message'       => $msg,
                                             'LDAP_Dir'      => $ldapdir,
                                             'Nack_Dir'      => $nackdir,
+                                            'File_Mask'     => $mask,
                                             'Configuration' => $dvt)}
                           ); };
     if ($@) {
