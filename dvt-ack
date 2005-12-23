@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 23:11:29 2005
+# Last Modified On : Thu Dec 22 23:20:54 2005
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 94
+# Update Count     : 95
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -359,7 +359,7 @@ sub send_ack {
     }
 
     my $subject = "Acknowledgement for your vote";
-    if ($Config{"Pass_Word"}) {
+    if ($Config{"Encrypted_Ack"}) {
       $ret = &send_encrypted_mail('Destination'   => "$from",
                                   'Subject'       => "$subject",
                                   'Body'          => "$body",
