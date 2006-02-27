@@ -40,7 +40,6 @@ fi
 basedir=/org/vote.debian.org/
 BALLOTDIR=$basedir/ballots/
 datadir=$basedir/data/
-html_dir="$HOME/public_html"
 TEMP_DIR="$HOME/tmp"
 
 ballots=$(find $BALLOTDIR -type f -name \*.blt);
@@ -49,14 +48,18 @@ echo "$ballots"
 for ballot in $ballots; do
     vote=$(basename $ballot .blt; )
     workdir=$datadir/$vote
+    html_dir="$HOME/public_html/$vote"
     config=$workdir/devotee.conf
     count=$(egrep 'Current' $workdir/quorum.txt | sed -e 's/^.*= *//' -e 's/ *$//')
     if [ -z "$count" ]; then count=1000; fi
     title=$(egrep ^Title $config | sed -e 's/^.*= *//' -e 's/; *$//')
     start_time=$(egrep ^Start_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
     end_time=$(egrep ^End_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
-
     
+    if [ ! -d "$html_dir" ]; then
+        mkdir -p "$html_dir"
+    fi
+
     scratchdir="$TEMP_DIR/${vote}"
     if [ ! -d "$scratchdir" ]; then
         mkdir -p "$scratchdir"
@@ -144,12 +147,12 @@ for ballot in $ballots; do
     fi  
     expires=$(date --utc --rfc -d '1 hour')
 
-    if [ -e "$html_dir/${vote}_results.png" ]; then
+    if [ -e "$html_dir/results.png" ]; then
         position_graph="\
 	<tr class=\"Ignored\">
 	  <td  align=\"center\" colspan=\"6\">
-             <a href=\"${vote}_results.dot\">
-	       <img src=\"${vote}_results.png\" alt=\"Graph of the
+             <a href=\"results.dot\">
+	       <img src=\"results.png\" alt=\"Graph of the
 		  standings of the candidates\">
              </a>
 	  </td>
@@ -174,8 +177,8 @@ for ballot in $ballots; do
     <meta http-equiv=\"expires\" content=\"$expires\">
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-          content=\"3600;http://master.debian.org/~srivasta/${vote}.html\">
-    <link href=\"index.css\" rel=\"stylesheet\">
+          content=\"3600;http://master.debian.org/~srivasta/${vote}/index.html\">
+    <link href=\"../index.css\" rel=\"stylesheet\">
     <title>${title}</title>
   </head>
 
@@ -183,7 +186,7 @@ for ballot in $ballots; do
     <h1 class=\"title\">${title}</h1>
 
     <p class=\"remark\">
-    A <a href=\"${vote}_txt.html\">text only version</a> is also available.
+    A <a href=\"index_txt.html\">text only version</a> is also available.
     </p>
 
     <table width=\"90%\">
@@ -216,26 +219,26 @@ for ballot in $ballots; do
 	  <td align=\"center\">$gack</td>
 	  <td align=\"center\">$missing</td>
 	  <td align=\"center\">$bad_ballot</td>
-	  <td colspan=\"2\" align=\"center\"><a href=\"${vote}_voters.txt\">$uids</a></td>
+	  <td colspan=\"2\" align=\"center\"><a href=\"voters.txt\">$uids</a></td>
 	</tr>
 	<tr>
 	  <td  align=\"center\" colspan=\"6\">
-	     <a href=\"${vote}_vote_detailed.html\">
-	      <img src=\"${vote}_vote.png\" alt=\"Graph of the
+	     <a href=\"vote_detailed.html\">
+	      <img src=\"vote.png\" alt=\"Graph of the
 		rate at which the votes are received\"></a>
 	  </td>
 	</tr>
 	<tr>
 	  <td  align=\"center\" colspan=\"6\">
 	    Click on the image above to get a Zoomed in version.<br> A
-            <a href=\"${vote}_tally.txt\">tally sheet</a> is
+            <a href=\"tally.txt\">tally sheet</a> is
             available.  While the voting is still open the tally is a
             dummy one; after the vote, the final tally sheet shall be
             put in place. Please note that for secret ballots the
             md5sum on the dummy tally sheet is randomly generated, as
             otherwise the dummy tally sheet would leak information
             relating the md5 hash and the voter.  Additionally, the
-             <a href=\"${vote}_results.txt\">results</a> shall be
+             <a href=\"results.txt\">results</a> shall be
              updated after the polls close. 
 	  </td>
 	</tr>
@@ -273,11 +276,11 @@ for ballot in $ballots; do
       </div>
     <p class=\"hint\">
       <a href=\"http://validator.w3.org/check/referer\"><img border=\"0\"
-          src=\"valid-html401.png\"
+          src=\"../valid-html401.png\"
           alt=\"Valid HTML 4.01!\" height=\"31\" width=\"88\"></a>
       <a href=\"http://jigsaw.w3.org/css-validator/\">
        <img style=\"border:0;width:88px;height:31px\"
-            src=\"vcss.png\" alt=\"Valid CSS!\"> </a>
+            src=\"../vcss.png\" alt=\"Valid CSS!\"> </a>
     </p>
   </body>
 </html>
@@ -305,7 +308,7 @@ set mytics 10
 set xtics  86400
 set mxtics 24
 
-set output \"${vote}_vote_detailed.png\"
+set output \"vote_detailed.png\"
 plot \"nack.dat\" using 2:7 title \"Rejected Ballots\" with linesp , \"tally.dat\" using 2:7 title \"Vote Tallied,\" with linesp , \"spool.dat\" using 2:7 title \"Received Ballots\" with linesp, \"ack.dat\" using 2:7 title \"Acknowledgements\" with lines 
 
 
@@ -317,11 +320,11 @@ set xrange [\"${start_time}\":\"${end_time}\"]
 set xtics \"${start_time}\", 172800, \"${end_time}\"
 
 set yrange [0:$count]
-set output \"${vote}_vote.png\"
+set output \"vote.png\"
 
 replot
 
-set output \"${vote}_vote.txt\"
+set output \"vote.txt\"
 set terminal dumb
 replot
 
@@ -331,10 +334,10 @@ replot
     echo "$gnuplot_file" > ${vote}.gnuplot
 
     gnuplot ${vote}.gnuplot
-    mv -f  ${vote}_vote_detailed.png ${vote}_vote.png ${html_dir}/
+    mv -f  vote_detailed.png vote.png ${html_dir}/
 
 
-    echo "$page_top" > ${html_dir}/${vote}.html
+    echo "$page_top" > ${html_dir}/index.html
 
 
 
@@ -352,8 +355,8 @@ replot
     <meta http-equiv=\"expires\" content=\"$expires\">
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-          content=\"3600;http://master.debian.org/~srivasta/${vote}.html\">
-    <link href=\"index.css\" rel=\"stylesheet\">
+          content=\"3600;http://master.debian.org/~srivasta/${vote}/index.html\">
+    <link href=\"../index.css\" rel=\"stylesheet\">
     <title>${title} (Text Only)</title>
   </head>
 
@@ -404,7 +407,7 @@ replot
         </tr>
         <tr class=\"Ignored\">
 	  <th>Unique Voters</th>
-	  <td align=\"center\"><a href=\"${vote}_voters.txt\">$uids</a></td>
+	  <td align=\"center\"><a href=\"voters.txt\">$uids</a></td>
         </tr>
         <tr>
 	  <td  align=\"center\" colspan=\"2\">
@@ -417,14 +420,14 @@ replot
         </tr>
 	<tr>
 	  <td  align=\"center\" colspan=\"2\">
-            A <a href=\"${vote}_tally.txt\">tally sheet</a> is
+            A <a href=\"tally.txt\">tally sheet</a> is
             available.  While the voting is still open the tally is a
             dummy one; after the vote, the final tally sheet shall be
             put in place. Please note that for secret ballots the
             md5sum on the dummy tally sheet is randomly generated, as
             otherwise the dummy tally sheet would leak information
             relating the md5 hash and the voter.  Additionally, the 
-            <a href=\"${vote}_results.txt\">results</a> shall be
+            <a href=\"results.txt\">results</a> shall be
              updated after the polls close. 
 	  </td>
 	</tr>
@@ -461,11 +464,11 @@ replot
       </div>
     <p class=\"hint\">
       <a href=\"http://validator.w3.org/check/referer\"><img border=\"0\"
-          src=\"valid-html401.png\"
+          src=\"../valid-html401.png\"
           alt=\"Valid HTML 4.01!\" height=\"31\" width=\"88\"></a>
       <a href=\"http://jigsaw.w3.org/css-validator/\">
        <img style=\"border:0;width:88px;height:31px\"
-            src=\"vcss.png\" alt=\"Valid CSS!\"> </a>
+            src=\"../vcss.png\" alt=\"Valid CSS!\"> </a>
     </p>
   </body>
 </html>
@@ -501,14 +504,14 @@ replot
     <meta http-equiv=\"Pragma\" content=\"no-cache\"> 
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-      content=\"3600;http://master.debian.org/~srivasta/${vote}_vote_detailed.html\">
+      content=\"3600;http://master.debian.org/~srivasta/${vote}/vote_detailed.html\">
   </head>
 
   <body>
     <h1 class=\"title\">A detailed look at the vote statistics</h1>
 
     <p class=\"center\">
-      <img class=\"center\" src=\"${vote}_vote_detailed.png\" alt=\"Detailed viiew of 
+      <img class=\"center\" src=\"vote_detailed.png\" alt=\"Detailed view of 
 	voting activity\">
     </p>
 
@@ -522,11 +525,11 @@ Last modified: Fri Mar  7 23:57:30 CST 2003
       </div>
     <p class=\"hint\">
       <a href=\"http://validator.w3.org/check/referer\"><img border=\"0\"
-          src=\"valid-html401.png\"
+          src=\"../valid-html401.png\"
           alt=\"Valid HTML 4.01!\" height=\"31\" width=\"88\"></a>
       <a href=\"http://jigsaw.w3.org/css-validator/\">
        <img style=\"border:0;width:88px;height:31px\"
-            src=\"vcss.png\" alt=\"Valid CSS!\"> </a>
+            src=\"../vcss.png\" alt=\"Valid CSS!\"> </a>
 
     </p>
   </body>
@@ -534,10 +537,10 @@ Last modified: Fri Mar  7 23:57:30 CST 2003
 
 "
 
-    echo "$detailed_html"  > ${html_dir}/${vote}_vote_detailed.html
-    echo "$text_only" > ${html_dir}/${vote}_txt.html
-    perl -ple 's/\f//;' < ${vote}_vote.txt >> ${html_dir}/${vote}_txt.html
-    echo "$bottom"  >> ${html_dir}/${vote}_txt.html
+    echo "$detailed_html"  > ${html_dir}/vote_detailed.html
+    echo "$text_only" > ${html_dir}/index_txt.html
+    perl -ple 's/\f//;' < vote.txt >> ${html_dir}/index_txt.html
+    echo "$bottom"  >> ${html_dir}/index_txt.html
 done
 
 
