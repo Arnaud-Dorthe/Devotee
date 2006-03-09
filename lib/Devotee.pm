@@ -364,6 +364,7 @@ Specify the file name where the results should be put
 		  'final_tally'  => sub {$::ConfOpts{"Final_Tally"}= "$_[1]";},
 		  'gpg_ring=s'   => sub {$::ConfOpts{"GPG_Keyring"}= "$_[1]";},
 		  'help'         => sub {print Devotee->Usage();      exit 0;},
+		  'html_result=s'=> sub {$::ConfOpts{"HTML_Result"}= "$_[1]";},
 		  'ldap_base=s'  => sub {$::ConfOpts{"Ldap_Base"}  = "$_[1]";},
 		  'ldap_host=s'  => sub {$::ConfOpts{"Ldap_Host"}  = "$_[1]";},
 		  'ldap_filter=s'=> sub {$::ConfOpts{"Ldap_Filter"}= "$_[1]";},
@@ -482,6 +483,7 @@ Version $main::Version
 		  "Tally_File"     => "tally.txt", # tally sheet 
 		  "Tally_Dummy"    => "dummy_tally.txt", # dummy tally sheet 
 		  "Voters_File"    => "voters.txt", # List of people who have voted
+		  "HTML_Result"    => "results.html",
 		  "Results"        => "results.txt",
 		  "Graph"          => "results.dot",
 		},
