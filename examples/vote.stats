@@ -262,7 +262,9 @@ for ballot in $ballots; do
 	displays as a space) in the ballot that confuses the parser.
       </small>    </p>
       </div>
+"
 
+page_bottom="\
 
     <hr>
     <address><a href=\"mailto:srivasta@debian.org\">Manoj Srivastava</a></address>
@@ -338,7 +340,10 @@ replot
 
 
     echo "$page_top" > ${html_dir}/index.html
-
+    if [ -e "$html_dir/results.html" ]; then
+        cat "$html_dir/results.html" >> ${html_dir}/index.html
+    fi
+    echo "$page_bottom" >> ${html_dir}/index.html
 
 
 
