@@ -96,24 +96,27 @@ sub create_list {
   my %Data;
 
   foreach my $msg (sort @messages) {
-    my $uid ;
-    my $cn  ;
-    my $sn  ;
+    my $uid  ;
+    my $cn   ;
+    my $sn   ;
+    my $gecos;
 
     my $ret = open(LDAP, "$ldapdir/$msg");
     die "Error Reading fingerprint from $ldapdir/$msg:$!" unless $ret;
     while (<LDAP>) {
       chomp;
-      if    (m/^uid: (\S+)/o)    { $uid = $1; next; }
-      elsif (m/^cn: (.*)\s*$/o ) { $cn  = $1; next; }
-      elsif (m/^sn: (.*)\s*$/o ) { $sn  = $1; next; }
+      if    (m/^uid: (\S+)/o)       { $uid   = $1; next; }
+      elsif (m/^cn: (.*)\s*$/o )    { $cn    = $1; next; }
+      elsif (m/^sn: (.*)\s*$/o )    { $sn    = $1; next; }
+      elsif (m/^gecos: (.*)\s*$/o ) { $gecos = $1; next; }
     }
     close LDAP;
 
     die "Error parsing $ldapdir/$msg" unless $uid;
     next if defined $Data{ $uid };
-    $Data{ $uid }->{'cn'} = $cn if $cn;
-    $Data{ $uid }->{'sn'} = $sn if $sn;
+    $Data{ $uid }->{'cn'}    = $cn    if $cn;
+    $Data{ $uid }->{'sn'}    = $sn    if $sn;
+    $Data{ $uid }->{'gecos'} = $gecos if $gecos;
   }
 
   open (VOTERS, ">$votersfile") ||
@@ -127,9 +130,13 @@ sub create_list {
       printf VOTERS "% 5s %15s\t%s\n", "Count", " Debian UID ", "   Name ";
       print VOTERS "-=" x 35, "\n";
     }
-    printf VOTERS "% 5d %15s\t%s %s\n", ++$index, $uid, 
-      defined $Data{$uid}->{'cn'} ? $Data{$uid}->{'cn'} : " ",
-        defined $Data{$uid}->{'sn'} ? $Data{$uid}->{'sn'} : " ";
+    if (defined $Data{$uid}->{'gecos'}) {
+      printf VOTERS "% 5d %15s\t%s\n", ++$index, $uid, $Data{$uid}->{'gecos'};
+    } else {
+      printf VOTERS "% 5d %15s\t%s %s\n", ++$index, $uid, 
+        defined $Data{$uid}->{'cn'} ? $Data{$uid}->{'cn'} : " ",
+          defined $Data{$uid}->{'sn'} ? $Data{$uid}->{'sn'} : " ";
+    }
   }
 }
 
