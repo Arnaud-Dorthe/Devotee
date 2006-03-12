@@ -245,7 +245,7 @@ EOM
         "\" because of Quorum\n";
     } else {
       print HTMLOUT "                <li>Option", $i + 1, 
-        " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K</li>\n";
+        " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] \&gt; $K</li>\n";
       print RESULTS "Option ", $i + 1, 
         " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K\n";
     }
@@ -273,7 +273,7 @@ EOM
       $Drop{$i}++;
       print HTMLOUT "                <li>Dropping Option", $i + 1, 
         " because of Majority. ";
-      printf HTMLOUT " %6.3f (%d/%d) <= %d</li>\n",
+      printf HTMLOUT " %6.3f (%d/%d) \&lt;= %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
@@ -286,7 +286,7 @@ EOM
     } else {
       print HTMLOUT "                <li>Option", $i + 1, 
         " passes Majority.\n";
-      printf HTMLOUT " %6.3f (%d/%d) > %d</li>\n",
+      printf HTMLOUT " %6.3f (%d/%d) \&gt; %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};

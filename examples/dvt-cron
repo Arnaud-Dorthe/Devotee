@@ -105,10 +105,8 @@ for ballot in $ballots; do
                     chmod +r  $html_dir/${i}.new
                     mv    -f  $html_dir/${i}.new  $html_dir/${i}
                     if which dot >/dev/null 2>&1; then
-                        dot -Tpng $basedir/data/$vote/results.dot > \ 
-                                  $basedir/data/$vote/results.png
-                        cp -f     $basedir/data/$vote/results.png   \
-                                  $html_dir/results.png
+                        dot -Tpng $basedir/data/$vote/results.dot > $basedir/data/$vote/results.png
+                        cp -f     $basedir/data/$vote/results.png $html_dir/results.png
                     fi
                 done
             else
