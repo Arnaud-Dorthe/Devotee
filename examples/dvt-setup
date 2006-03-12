@@ -1,0 +1,62 @@
+#!/bin/sh
+#                               -*- Mode: Sh -*- 
+# dvt-setup --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Sat Mar 11 21:48:18 2006
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sat Mar 11 23:38:11 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 3
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# arch-tag: c256474d-fa9f-49ff-8626-1a12226de17c
+
+
+
+# This script is a part of the Devotee package, and is 
+# Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+
+set -e
+
+VOTE=$1
+
+basedir=/org/vote.debian.org/
+test -d $basedir || exit 1
+
+export PERLLI=$basedir/bin
+
+BALLOTDIR=$basedir/ballots/
+VOTEDIR=$basedir/data/$VOTE
+
+EXAMPLEDIR=$(dirname $0)
+
+
+mkdir -p $VOTEDIR
+
+cd $VOTEDIR
+
+rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.pgp debian-keyring.pgp
+rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.gpg debian-keyring.gpg
+
+for i in ballot crontab.novote end-vote start-vote crontab devotee.conf dvt-setup forward vote.stats; do
+    test ! -e $EXAMPLEDIR/$i || cp -f $EXAMPLEDIR/$i .
+done
+
+perl -w $PERLLIB/Devotee.pm --top_dir=. -m  --nosign_ack
