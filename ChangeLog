@@ -1,0 +1,11 @@
+2006-03-25  Manoj Srivastava  <srivasta@debian.org>
+
+	* dvt-ack (send_encrypted_mail):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-15
+		  Suppressed a few more warning not really relevant to an
+		  automated vote runner.  
+
+	* dvt-quorum (do_quorum):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-15
+		  Ditto.
+

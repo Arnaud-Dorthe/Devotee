@@ -132,7 +132,7 @@ sub do_quorum {
   my $gnupg = GnuPG::Interface->new();
 
   my @gpg_args = ("--no-default-keyring", "--always-trust",
-                  "--no-auto-check-trustdb");
+                  "--no-permission-warning", "--no-auto-check-trustdb");
   push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
   push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
 

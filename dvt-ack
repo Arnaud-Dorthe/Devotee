@@ -202,7 +202,8 @@ sub send_encrypted_mail {
 
   my $gnupg = GnuPG::Interface->new();
 
-  my @gpg_args = ("--no-default-keyring", "--always-trust");
+  my @gpg_args = ("--no-default-keyring", "--always-trust",
+                  "--no-permission-warning", "--no-auto-check-trustdb");
   push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
   push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
   push (@gpg_args, "--keyring", "$pubring") if  $pubring;

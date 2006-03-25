@@ -7,7 +7,7 @@ VOTE=gr_gfdl
 WORKDIR=/org/vote.debian.org
 BINDIR=$WORKDIR/bin
 VOTEDIR=$WORKDIR/data/${VOTE}
-TEMPDIR=$HOME/tmp/out
+TEMPDIR=$HOME/tmp
 
 #m   h dom monday dow command
 34   4,16  * * * (rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.gpg ${VOTEDIR}/debian-keyring.gpg)

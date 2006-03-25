@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 15 09:27:02 2005
+# Last Modified On : Sun Mar 12 01:23:06 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 139
+# Update Count     : 140
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -575,8 +575,8 @@ EOM
 
   print HTMLOUT <<BOTTOM;
               <p>
-               Debian uses the Condorcet method for project leader
-               elections. Simplistically, plain Condorcets method
+               Debian uses the Condorcet method voting.
+               Simplistically, plain Condorcets method
                can be stated like so : <br/>
                <q>Consider all possible two-way races between candidates.
                   The Condorcet winner, if there is one, is the one
