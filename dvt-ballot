@@ -134,9 +134,13 @@ sub send_ballot {
   my $entity;
   eval {$entity = $parser->parse(\*STDIN); };
   if ($@) {
-    die "Could not parse message message:$@";
+    die "Could not parse message:$@";
   }
 
+  if (! (($entity->effective_type =~ m!multipart/signed!) ||
+         ($entity->as_string =~ m!^-----BEGIN PGP SIGNED MESSAGE-----!m))) {
+    die "Unsigned message. Please GPG sign all requests for ballots.\n";
+  }
   my $head = $entity->head;
   my $type = $head->get('Content-Type');
   my $from = $head->get('From');

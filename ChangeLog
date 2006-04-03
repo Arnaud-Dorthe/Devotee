@@ -1,3 +1,9 @@
+2006-04-03  Manoj Srivastava  <srivasta@debian.org>
+
+	* dvt-ballot (send_ballot):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-16
+		  Reject unsigned requests 
+
 2006-03-25  Manoj Srivastava  <srivasta@debian.org>
 
 	* dvt-ack (send_encrypted_mail):
