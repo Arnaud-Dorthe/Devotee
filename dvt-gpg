@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Apr  8 04:26:21 2005
+# Last Modified On : Fri Apr  7 12:07:49 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 129
+# Update Count     : 131
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -348,16 +348,36 @@ sub verify_messages {
       } 
       else {
         $Replay{"$radix"} = $text;
-        open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
-          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
-        print GOOD $fingerprint, "\n";
-        close GOOD;
-        open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
-          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
-        print SIG $keyid, "\n";
-        close SIG;
+        if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
+          # Failure.
+          $text = "There was a problem verifying the signature on the ballot.\n";
+          $text   .=  "-=" x 35;
+          $text   .= "\n";
+          $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
+          $text   .= "\n";
+          $text   .= join "", @status;
+          $text   .=  "-=" x 35;
+          $text   .= "\n\n";
+          open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+            die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
+          print NACK $text;
+          print NACK "\tThis ballot is being rejected.\n\n";
+          close NACK;
+          $dvt->log_message($msg, $text);
+        }
+        else {
+          open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
+          print GOOD $fingerprint, "\n";
+          close GOOD;
+          open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
+          print SIG $keyid, "\n";
+          close SIG;
+        }
       }
     }
     elsif (-r "$bodydir/$msg.crlf") {
@@ -426,19 +446,39 @@ sub verify_messages {
         }
         # We know that this message has appeared before in the
         # replaydb, so no point in checking.
-        open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
-          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
-        print GOOD $fingerprint, "\n";
-        close GOOD;
-        open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
-          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
-        print SIG $keyid, "\n";
-        close SIG;
-        # record the fact that we succeeded on a line-ending mangled version.
-        $dvt->log_message($msg . ".crlferr", 
-                          "Matched message with \\n line endings\n");
+        if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
+          # Failure.
+          $text = "There was a problem verifying the signature on the ballot.\n";
+          $text   .=  "-=" x 35;
+          $text   .= "\n";
+          $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
+          $text   .= "\n";
+          $text   .= join "", @status;
+          $text   .=  "-=" x 35;
+          $text   .= "\n\n";
+          open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+            die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
+          print NACK $text;
+          print NACK "\tThis ballot is being rejected.\n\n";
+          close NACK;
+          $dvt->log_message($msg, $text);
+        }
+        else {
+          open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
+          print GOOD $fingerprint, "\n";
+          close GOOD;
+          open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
+          print SIG $keyid, "\n";
+          close SIG;
+          # record the fact that we succeeded on a line-ending mangled version.
+          $dvt->log_message($msg . ".crlferr", 
+                            "Matched message with \\n line endings\n");
+        }
       }
       else {
         # Failure.
@@ -572,16 +612,36 @@ sub verify_messages {
       }
       else {
         $Replay{"$radix"} = $text;
-        open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
-          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
-        print GOOD $fingerprint, "\n";
-        close GOOD;
-        open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
-          die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
-        chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
-        print SIG $keyid, "\n";
-        close SIG;
+        if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
+          # Failure.
+          $text = "There was a problem verifying the signature on the ballot.\n";
+          $text   .=  "-=" x 35;
+          $text   .= "\n";
+          $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
+          $text   .= "\n";
+          $text   .= join "", @status;
+          $text   .=  "-=" x 35;
+          $text   .= "\n\n";
+          open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+            die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
+          print NACK $text;
+          print NACK "\tThis ballot is being rejected.\n\n";
+          close NACK;
+          $dvt->log_message($msg, $text);
+        }
+        else {
+          open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
+          print GOOD $fingerprint, "\n";
+          close GOOD;
+          open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+            die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+          chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
+          print SIG $keyid, "\n";
+          close SIG;
+        }
       }
     }
     else {
@@ -603,7 +663,6 @@ sub verify_messages {
       close NACK;
       $dvt->log_message($msg, $text);
     }
-    
   }
 }
 
