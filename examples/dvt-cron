@@ -1,3 +1,4 @@
+
 #!/bin/sh
 #                               -*- Mode: Sh -*- 
 # dvt-cron --- 
@@ -5,9 +6,9 @@
 # Created On       : Mon Oct 20 23:16:09 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Dec 23 10:41:28 2005
+# Last Modified On : Sun Apr  9 10:26:09 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 16
+# Update Count     : 17
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -109,6 +110,7 @@ for ballot in $ballots; do
                         cp -f     $basedir/data/$vote/results.png $html_dir/results.png
                     fi
                 done
+                $basedir/bin/dvt-publish -c $conffile
             else
                 cp -f $basedir/data/${vote}/voters.txt      $html_dir/voters.txt;
                 cp -f $basedir/data/${vote}/dummy_tally.txt $html_dir/dummy_tally.txt

@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr  9 10:21:03 2006
+# Last Modified On : Sun Apr  9 10:29:57 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 158
+# Update Count     : 159
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -593,7 +593,7 @@ EOM
                various means of resolving the tie. See
                <a href="http://en.wikipedia.org/wiki/Cloneproof_Schwartz_Sequential_Dropping">Cloneproof Schwartz Sequential Dropping</a>
                for details. Debian's variation is spelled out in the
-               <a href="\$(HOME)/devel/constitution">the constitution</a>,
+               <a name="\$(HOME)/devel/constitution" href="http://www.debian.org/devel/constitution">the constitution</a>,
                specifically,  A.6.
               </p>
 BOTTOM
