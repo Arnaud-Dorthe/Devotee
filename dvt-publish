@@ -45,7 +45,8 @@ use MIME::Decoder::Binary;
 
 use IO::Handle;
 use GnuPG::Interface;
-use DB_File;
+use Mail::GnuPG;
+
 
 =head1 NAME
 
@@ -101,175 +102,58 @@ sub publish {
 
 
   my $passphrase = $Config{"Pass_Word"} if $Config{"Pass_Word"};
+  my $title      = $Config{"Title"};
+  my $my_email   = $Config{"My_Email"};
+  my $vote_email = $Config{"Vote_Taker_EMAIL"};
+  my $vote_name  = $Config{"Vote_Taker_Name"};
+  my $top = MIME::Entity->build("Type"     =>"multipart/mixed",
+                                "From"     => "$my_email",
+                                "Reply-To" => "$vote_email",
+                                "BCC"      => "$vote_email",
+                                "To"       => "$Config{Publish_To}",
+                                "CC"       => "$Config{Publish_CC}",
+                                "Subject"  => "Results for $title"
+                                );
 
-  my $top = MIME::Entity->build(Type    =>"multipart/mixed",
-                                From    => "me\@myhost.com",
-                                To      => "you\@yourhost.com",
-                                Subject => "Hello, nurse!");
-
-           ### Part #1: a simple text document:
-           $top->attach(Path=>"./testin/short.txt");
-           ### Part #2: a GIF file:
-           $top->attach(Path        => "./docs/mime-sm.gif",
-                        Type        => "image/gif",
-                        Encoding    => "base64");
-
-           ### Part #3: some literal text:
-           $top->attach(Data=>$message);
-           ### Sign it:
-           $top->sign;
-           ### Send it:
-           open MAIL, "| /usr/lib/sendmail -t -oi -oem" or die "open: $!";
-           $top->print(\*MAIL);
-           close MAIL;
-
-  my $ret = open(TEXT, "$ackdir/$msg");
-  if (!$ret) {
-    $dvt->log_message($msg, "Error reading body from $ackdir/$msg:$!");
-    next;
-  }
+  open RSLT, "$topdir/results.txt" || die "No results found: $!";;
+  # Slurp in the results
   undef $/;
-  my $body = <TEXT>;
-  close TEXT;
+  my $rslt = <RSLT>;
+  close RSLT;
   $/ = "\n";
-  if (!$body || $body =~ /^\s*$/) {
-    $dvt->log_message($msg, "No body found in  $ackdir/$msg:$!");
-    next;
-  }
+  my @rslt = split /\n/, $rslt;
 
-    my $parser = new MIME::Parser;
-    $parser->output_dir("$tmpdir");
-    $parser->output_to_core(0);
-    my $entity;
-    eval {$entity = $parser->parse_open("$workdir/$msg"); };
-    if ($@) {
-      $dvt->log_message($msg, "Could not parse message $msg");
-      next;
-    }
-    my $head        = $entity->head;
-    my $from        = $head->get('From');
-    my $replyto     = $head->get('Reply-To');
+  $top->attach("Data"     => ["Greetings,\n\n", 
+                              "\tThis message is an automated, unofficial publication of vote results.\n",
+                              " Official results shall follow, sent in by the vote taker, namely\n",
+                              "$vote_name\n\n",
+                              "\tThis email is just a convenience for the impatient.\n",
+                              " I remain, gentle folks,\n\n",
+                              "    Your humble servant,\n",
+                              "    Devotee (on behalf of $vote_name)\n\n",
+                              "    -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n",
+                              "\n",
+                              "$rslt"
+                             ],
+               Type        => "text/plain",
+               Disposition => "inline");
 
-    chomp($from)          if $from;
-    chomp($replyto)       if $replyto;
-    if ($replyto) {
-      $from = $replyto;
-    }
+  $top->attach(Path        => "$topdir/results.dot",
+               Type        => "text/plain",
+               Disposition => "attachment",
+               Encoding    => "quoted-printable");
+  ### Sign it:
+  $top->sign(Signature =>
+             ["The voters have spoken, the bastards... --unknown\n",
+              "DEbian VOTe EnginE\n"]);
 
-  my $subject = "Acknowledgement for your vote";
+  my $mg = new Mail::GnuPG (keydir => "$topdir", passphrase => "$passphrase");
+  my $ret = $mg->mime_sign($top);
 
-  my $msg = $params{'Message'};
-  # Grab the keyid we stashed away before, while verifying the sig
-  if (-r "$sigdir/$msg") {
-    my $ret = open(KEYID, "$sigdir/$msg");
-    if (!$ret) {
-      $dvt->log_message($msg, "Error reading uid from $sigdir/$msg:$!");
-      return 0;
-    }
-  } else {
-    $dvt->log_message($msg, "No keyid found in $sigdir / $msg");
-    return 0;
-  }
-  # Slurp in the key
-  undef $/;
-  my $keyid = <KEYID>;
-  close KEYID;
-  $/ = "\n";
-  chomp $keyid;
-
-  # Setup IO to talk to gpg
-  my ( $input,   $output, $error, $status_fh)
-    = ( IO::Handle->new(),
-        IO::Handle->new(),
-        IO::Handle->new(),
-        IO::Handle->new()
-      );
-  my $handles = GnuPG::Handles->new( stdin      => $input,
-                                     stdout     => $output,
-                                     stderr     => $error,
-                                     status     => $status_fh
-                                   );
-
-  my $gnupg = GnuPG::Interface->new();
-
-  my @gpg_args = ("--no-default-keyring", "--always-trust");
-  push (@gpg_args, "--keyring", "$pubring") if  $pubring;
-  push (@gpg_args, "--secret-keyring", "$secring") if  $secring;
-
-  $gnupg->options->hash_init( 'no_options' => 1,
-                              'armor'   => 1,
-                              'homedir' => $topdir,
-                              'recipients' => [ "$destination" ],
-                              'meta_interactive' => 0,
-                              "verbose" => 1,
-                              "always_trust" => 1,
-                              'extra_args' => [ @gpg_args ]
-                            );
-  # indicate our pasphrase through the convience method
-  $gnupg->passphrase( $passphrase );
-
-  my $pid = $gnupg->sign( handles => $handles);
-  #       my $pid = $gnupg->wrap_call (
-  #                 handles => $handles,
-  #                       commands     => [ qw( --sign --encrypt ) ]
-  #               );
-
-  # this closes the communication channel,
-  # indicating we are done
-  print $input $params{'Body'};
-  close $input;
-  
-  # now we read the output
-  my @output = <$output>;       # reading the output
-  my @errors = <$error>;        # reading the error
-  my @status = <$status_fh>;    # read the status info
-  
-  # clean up...
-  close $output;
-  close $error;
-  close $status_fh;
-
-  waitpid $pid, 0;              # clean up the finished GnuPG process
-
-  my $body = join ('', @output) if @output;
-  if (! $body) {
-    $dvt->log_message($msg, "Error encrypting message.\n@errors\n@status\n");
-    return 0;
-  }
-
-  # RFC 3156    
-  #  4.  OpenPGP encrypted data
-
-  my $text=<<EOH;
-From: $params{'Email'}
-To: $params{'Destination'}
-Reply-To: $params{'Email'}
-Bcc: $params{'Email'}
-Subject: $params{'Subject'}
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
-        micalg=pgp-sha1; boundary=xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx
-
-
---xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx
-Content-Type: application/pgp-encrypted
-
-Version: 1
-
---xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx
-Content-Type: application/octet-stream
-
-$body
-
---xx-63ff3786-ec44-48df-ac1c-354c05e07bba-xx--
-
-EOH
-  ;
-  open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
-  # open(MAIL, ">>Acks")                  || die "Cannot open sendmail";
-  print MAIL $text;
+# open(MAIL, ">Acks")                            || die "Cannot open sendmail";
+  open(MAIL, "| /usr/sbin/sendmail -t -oi -oem") || die "Cannot open sendmail";
+  $top->print(\*MAIL);
   close(MAIL);
-
 }
 
 sub main {

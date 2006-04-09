@@ -201,7 +201,7 @@ sub ldap_info {
       open(NACK, ">>$nackdir/$msg") ||
         die "Could not open $nackdir/$msg:$!";
       print NACK "There was an error retrieving information from LDAP for the\n";
-      print NACK "finderprint $filter.\n";
+      print NACK "fingerprint $filter.\n";
       print NACK "There is no way of knowing if this is a defunct account, so\n";
       print NACK "I am not recording this vote.\n";
       print NACK "\tThis ballot is being rejected, please vote again.\n\n";

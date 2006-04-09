@@ -1,3 +1,14 @@
+2006-04-08  Manoj Srivastava  <srivasta@debian.org>
+
+	* dvt-publish:
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-18
+		  First functioning implementation 
+
+	* dvt-gpg (verify_messages):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-18
+		  Added some more diagnostics for the case gpg returned a
+		  null key id. Typo fixes. 
+
 2006-04-03  Manoj Srivastava  <srivasta@debian.org>
 
 	* dvt-ballot (send_ballot):

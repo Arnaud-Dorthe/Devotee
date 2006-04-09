@@ -5,9 +5,9 @@
 # Created On       : Wed Mar 27 19:44:05 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Apr  7 12:07:49 2006
+# Last Modified On : Fri Apr  7 12:21:00 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 131
+# Update Count     : 132
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -351,6 +351,7 @@ sub verify_messages {
         if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
           # Failure.
           $text = "There was a problem verifying the signature on the ballot.\n";
+          $text   .=  "GPG did not return a fingerprint or key id\n";
           $text   .=  "-=" x 35;
           $text   .= "\n";
           $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
@@ -449,6 +450,7 @@ sub verify_messages {
         if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
           # Failure.
           $text = "There was a problem verifying the signature on the ballot.\n";
+          $text   .=  "GPG did not return a fingerprint or key id\n";
           $text   .=  "-=" x 35;
           $text   .= "\n";
           $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
@@ -615,6 +617,7 @@ sub verify_messages {
         if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
           # Failure.
           $text = "There was a problem verifying the signature on the ballot.\n";
+          $text   .=  "GPG did not return a fingerprint or key id\n";
           $text   .=  "-=" x 35;
           $text   .= "\n";
           $text   .= join "\n", grep { m/^\s*gpg:/ } @result;

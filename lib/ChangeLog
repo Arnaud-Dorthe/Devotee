@@ -1,0 +1,6 @@
+2006-04-08  Manoj Srivastava  <srivasta@debian.org>
+
+	* Devotee.pm:
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-18
+		  Added defaults for use by dvt-publish. 
+

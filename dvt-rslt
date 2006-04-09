@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Mar 12 01:23:06 2006
+# Last Modified On : Fri Apr  7 13:36:41 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 140
+# Update Count     : 156
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -254,6 +254,10 @@ EOM
 
   print RESULTS "\n\n";
 
+  # Record Majority
+  my %Ratio = ();
+
+
   #   2. An option A defeats the default option D by a majority ratio N,
   #   if V(A,D) is strictly greater than N * V(D,A).
   #   3. If a supermajority of S:1 is required for A, its majority ratio
@@ -268,6 +272,7 @@ EOM
 
     my $ratio = $Beat_Matrix[$i][$max_choices - 1] /
       $Beat_Matrix[$max_choices - 1][$i];
+    $Ratio{$i} = sprintf("%.2f", $ratio);
     if ($ratio <= $Config{"Majority_" . ($i + 1)}) {
       # If the next line is commented out, we get a more verbose set of results
       $Drop{$i}++;
@@ -603,7 +608,11 @@ BOTTOM
     # winners (who get a different color fill)
 
     # Print Node information.
-    print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" [ style=\"filled\" ";
+    my $NodeA = $Config{"Option_" . ($i + 1)};
+    # Add majority ratio
+    $NodeA   .= "\\n$Ratio{$i}" if $Ratio{$i};
+
+    print GRAPH " \"$NodeA\" [ style=\"filled\" ";
     if ($Schwartz[$i]) {
       print GRAPH ", color=\"powderblue\", shape=egg, fontcolor=\"Navy Blue\"";
     }
@@ -624,8 +633,24 @@ BOTTOM
         # my $win;
         # $win = $label;
         # "weight=", ((($win<0)?-1:1) * 1000/$win),
-        print GRAPH " \"", $Config{"Option_" . $max_choices}, "\" -> \"",
-          $Config{"Option_" . ($i + 1)}, "\" [ label=\"$label\" ];\n";
+        print GRAPH " \"", $Config{"Option_" . $max_choices}, 
+          "\" -> \"$NodeA\" [ label=\"$label\" ];\n";
+
+#         # Draw all the relationships, even to the ones failing majority
+#         foreach my $j (0..($max_choices - 1)) {
+#           next if $i == $j;
+#           # Note that this is different from the options that were not dropped
+#           my $label = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
+#           next unless $label > 0;
+#           #  This is the second node in the Edge
+#           my $NodeB = $Config{"Option_" . ($j + 1)};
+#           # Add majority ratio
+#           $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
+
+#           # Print the edge information.
+#           print GRAPH " \"$NodeB\" -> \"$NodeA\" [ label=\"$label\", ",
+#             " style=\"dotted\", color=\"pink\" ];\n";
+#         }
       }
     }
     foreach my $j (0..($max_choices - 1)) {
@@ -643,9 +668,13 @@ BOTTOM
         # edge, since anything else is likely to confuse people.
         my $label = $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i];
 
+        #  This is the second node in the Edge
+        my $NodeB = $Config{"Option_" . ($j + 1)};
+        # Add majority ratio
+        $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
+
         # Print the edge information.
-        print GRAPH " \"", $Config{"Option_" . ($i + 1)}, "\" -> \"",
-          $Config{"Option_" . ($j + 1)}, "\" [ label=\"$label\" ];\n";
+        print GRAPH " \"$NodeA\" -> \"$NodeB\" [ label=\"$label\" ];\n";
       }
     }
   }
