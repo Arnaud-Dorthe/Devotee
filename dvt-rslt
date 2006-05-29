@@ -373,6 +373,7 @@ EOM
     #   1. An option A transitively defeats an option C if A defeats C or
     #      if there is some other option B where A defeats B AND B
     #      transitively defeats C.
+    $done = 0;
     while (!$done) {
       $done = 1;
       foreach my $i (0..($max_choices - 1)) {
@@ -500,39 +501,6 @@ EOM
             }
           }
         }
-        if (defined $Defeats{$j}{$i}{'for'}) {
-          if (! $weak_count) {
-            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
-            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
-            $Weakest{$weak_count}{'Winner'}  = $j;
-            $Weakest{$weak_count}{'Loser'}   = $i;
-            $weak_count++;
-          } elsif ($Weakest{0}{'for'} > $Defeats{$j}{$i}{'for'}) {
-            undef %Weakest;
-            $weak_count = 0;
-            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
-            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
-            $Weakest{$weak_count}{'Winner'}  = $j;
-            $Weakest{$weak_count}{'Loser'}   = $i;
-            $weak_count++;
-          } elsif ($Weakest{0}{'Low'} == $Defeats{$j}{$i}{'for'}) {
-            if ($Weakest{0}{'against'} < $Defeats{$j}{$i}{'against'}) {
-              undef %Weakest;
-              $weak_count = 0;
-              $Weakest{$weak_count}{'for'}    = $Defeats{$j}{$i}{'for'};
-              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
-              $Weakest{$weak_count}{'Winner'} = $j;
-              $Weakest{$weak_count}{'Loser'}  = $i;
-              $weak_count++;
-            } else {
-              $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
-              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
-              $Weakest{$weak_count}{'Winner'}  = $j;
-              $Weakest{$weak_count}{'Loser'}   = $i;
-              $weak_count++;
-            }
-          }
-        }
       }
     }
     if (! $weak_count) {
@@ -556,7 +524,7 @@ EOM
       print RESULTS "Weakest Defeat(s): \n";
       print HTMLOUT "              <h3>Weakest Defeat(s)</h3>\n";
       print HTMLOUT "              <ul>\n";
-      foreach my $k (sort keys %Weakest) {
+      foreach my $k (keys %Weakest) {
         print HTMLOUT "                <li>Option ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
           $Weakest{$k}{'Loser'} + 1, " by ",
             " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
@@ -572,7 +540,7 @@ EOM
       print HTMLOUT "              </ul>\n";
       print HTMLOUT "              <p>Deleting weakest defeat(s)</p>\n";
       print RESULTS "Deleting weakest defeat(s)\n\n";
-      foreach my $k (sort keys %Weakest) {
+      foreach my $k (keys %Weakest) {
         delete $Defeats{$Weakest{$k}{'Winner'}}{$Weakest{$k}{'Loser'}};
       }
     }
