@@ -117,6 +117,7 @@ sub create_list {
     $Data{ $uid }->{'cn'}    = $cn    if $cn;
     $Data{ $uid }->{'sn'}    = $sn    if $sn;
     $Data{ $uid }->{'gecos'} = $gecos if $gecos;
+    $Data{ $uid }->{'gecos'} =~ s/,.*$// if $gecos;
   }
 
   open (VOTERS, ">$votersfile") ||

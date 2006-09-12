@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr  9 10:29:57 2006
+# Last Modified On : Sun Apr  9 09:43:09 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 159
+# Update Count     : 157
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -373,7 +373,6 @@ EOM
     #   1. An option A transitively defeats an option C if A defeats C or
     #      if there is some other option B where A defeats B AND B
     #      transitively defeats C.
-    $done = 0;
     while (!$done) {
       $done = 1;
       foreach my $i (0..($max_choices - 1)) {
@@ -501,6 +500,39 @@ EOM
             }
           }
         }
+        if (defined $Defeats{$j}{$i}{'for'}) {
+          if (! $weak_count) {
+            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+            $Weakest{$weak_count}{'Winner'}  = $j;
+            $Weakest{$weak_count}{'Loser'}   = $i;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} > $Defeats{$j}{$i}{'for'}) {
+            undef %Weakest;
+            $weak_count = 0;
+            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+            $Weakest{$weak_count}{'Winner'}  = $j;
+            $Weakest{$weak_count}{'Loser'}   = $i;
+            $weak_count++;
+          } elsif ($Weakest{0}{'Low'} == $Defeats{$j}{$i}{'for'}) {
+            if ($Weakest{0}{'against'} < $Defeats{$j}{$i}{'against'}) {
+              undef %Weakest;
+              $weak_count = 0;
+              $Weakest{$weak_count}{'for'}    = $Defeats{$j}{$i}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+              $Weakest{$weak_count}{'Winner'} = $j;
+              $Weakest{$weak_count}{'Loser'}  = $i;
+              $weak_count++;
+            } else {
+              $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+              $Weakest{$weak_count}{'Winner'}  = $j;
+              $Weakest{$weak_count}{'Loser'}   = $i;
+              $weak_count++;
+            }
+          }
+        }
       }
     }
     if (! $weak_count) {
@@ -524,7 +556,7 @@ EOM
       print RESULTS "Weakest Defeat(s): \n";
       print HTMLOUT "              <h3>Weakest Defeat(s)</h3>\n";
       print HTMLOUT "              <ul>\n";
-      foreach my $k (keys %Weakest) {
+      foreach my $k (sort keys %Weakest) {
         print HTMLOUT "                <li>Option ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
           $Weakest{$k}{'Loser'} + 1, " by ",
             " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
@@ -540,7 +572,7 @@ EOM
       print HTMLOUT "              </ul>\n";
       print HTMLOUT "              <p>Deleting weakest defeat(s)</p>\n";
       print RESULTS "Deleting weakest defeat(s)\n\n";
-      foreach my $k (keys %Weakest) {
+      foreach my $k (sort keys %Weakest) {
         delete $Defeats{$Weakest{$k}{'Winner'}}{$Weakest{$k}{'Loser'}};
       }
     }
@@ -561,7 +593,7 @@ EOM
                various means of resolving the tie. See
                <a href="http://en.wikipedia.org/wiki/Cloneproof_Schwartz_Sequential_Dropping">Cloneproof Schwartz Sequential Dropping</a>
                for details. Debian's variation is spelled out in the
-               <a name="\$(HOME)/devel/constitution" href="http://www.debian.org/devel/constitution">the constitution</a>,
+               <a href="\$(HOME)/devel/constitution">the constitution</a>,
                specifically,  A.6.
               </p>
 BOTTOM
@@ -604,7 +636,6 @@ BOTTOM
         print GRAPH " \"", $Config{"Option_" . $max_choices}, 
           "\" -> \"$NodeA\" [ label=\"$label\" ];\n";
 
-        # Add edgfes for options below the default option
         foreach my $j (keys %Drop) {
           next if $i == $j;
           my $label = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
