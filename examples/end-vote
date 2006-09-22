@@ -17,14 +17,18 @@
 # arch-tag: 77986266-17e2-4fe1-9000-2a7029a04e14
 
 VOTE=$1
+if [ -z "$VOTE" ]; then
+  exit 1;
+fi
+
 
 # Locations for the vote
-CRON_DIR=/debian/home/srivasta/etc
+CRON_DIR=/home/srivasta/etc
 MAIL_DIR=/org/vote.debian.org/mail
 BIN_DIR=/org/vote.debian.org/bin
 BALLOT_DIR=/org/vote.debian.org/ballots
-HTML_DIR=/debian/home/srivasta/public_html
-WORK_DIR=/org/vote.debian.org/data/${VOTE}
+HTML_DIR=/home/srivasta/public_html
+#WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
 # Stop running devotee n cron
 cp -f ${CRON_DIR}/crontab             ${CRON_DIR}/crontab.old

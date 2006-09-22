@@ -36,11 +36,17 @@
 set -e
 
 VOTE=$1
+if [ -z "$VOTE" ]; then
+    echo >&2 No vote specified. ABorting
+    exit 2
+fi
+
 
 basedir=/org/vote.debian.org/
 test -d $basedir || exit 1
 
-export PERLLI=$basedir/bin
+PERLLIB=$basedir/bin
+export PERLLIB
 
 BALLOTDIR=$basedir/ballots/
 VOTEDIR=$basedir/data/$VOTE
@@ -55,8 +61,20 @@ cd $VOTEDIR
 rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.pgp debian-keyring.pgp
 rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.gpg debian-keyring.gpg
 
-for i in ballot crontab.novote end-vote start-vote crontab devotee.conf dvt-setup forward vote.stats; do
+for i in ballot crontab.novote end-vote start-vote dvt-setup vote.stats; do
     test ! -e $EXAMPLEDIR/$i || cp -f $EXAMPLEDIR/$i .
+done
+if [ -e $EXAMPLEDIR/devotee.conf ]; then
+    sed -e "s/%VOTE%/$VOTE/g" -e "s/%REPLACE_UUID%/$(uuidgen)/"       \
+        -e "s/%START%/$(date --date='+1 days' +'%d %b %Y') 00:00:01/" \
+        -e "s/%END%/$(date --date='+15 days' +'%d %b %Y') 00:00:01/"  \
+        $EXAMPLEDIR/devotee.conf > devotee.conf
+fi
+
+for i in crontab.novote crontab forward; do
+    if [ -e $EXAMPLEDIR/$i ]; then
+        sed -e "s/%VOTE%/$VOTE/g" $EXAMPLEDIR/$i > $i
+    fi
 done
 
 perl -w $PERLLIB/Devotee.pm --top_dir=. -m  --nosign_ack

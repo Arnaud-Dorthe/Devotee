@@ -16,10 +16,15 @@
 # arch-tag: e2f2887b-0f66-47b7-8164-dc4991d08fb4
 VOTE=$1
 
-CRON_DIR=/debian/home/srivasta/etc
+if [ -z "$VOTE" ]; then
+  exit 1;
+fi
+
+CRON_DIR=/home/srivasta/etc
 MAIL_DIR=/org/vote.debian.org/mail
 WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
 cp ${WORK_DIR}/forward ${MAIL_DIR}/.forward-${VOTE}
+cp ${WORK_DIR}/crontab ${CRON_DIR}/crontab
 /usr/bin/crontab ${CRON_DIR}/crontab
 
