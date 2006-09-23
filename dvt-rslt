@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr  9 09:43:09 2006
+# Last Modified On : Sat Sep 23 18:44:28 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 157
+# Update Count     : 158
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -152,10 +152,19 @@ sub winner {
     }
   }
   print RSLT_OUT <<PREAMBLE;
-            <p>
-               In the following table, tally[row x][col y] represents
-               the votes that option x received over option y. A 
-               <a href="http://en.wikipedia.org/wiki/Schwartz_method">more
+           <p class="center">
+             <a style="margin-left: auto; margin-right: auto;" href="results.dot">
+               <img src="results.png" alt="Graphical rendering of the results">
+               </a>
+           </p>
+             <p>
+               In the graph above, any pink colored nodes imply that
+               the option did not pass majority, the Blue is the
+               winner. The Octagon is used for the options that did
+               not beat the default.  In the following table,
+               tally[row x][col y] represents the votes that option x
+               received over option y. A <a
+               href="http://en.wikipedia.org/wiki/Schwartz_method">more
                  detailed explanation of the beat matrix</a> may help in
                understanding the table. For understanding the Condorcet method, the
                <a href="http://en.wikipedia.org/wiki/Condorcet_method">Wikipedia
@@ -179,6 +188,15 @@ EOF
   ;
   print RSLT_OUT <<POSTAMBLE;
            </ul>
+            <p>
+               In the following table, tally[row x][col y] represents
+               the votes that option x received over option y. A 
+               <a href="http://en.wikipedia.org/wiki/Schwartz_method">more
+                 detailed explanation of the beat matrix</a> may help in
+               understanding the table. For understanding the Condorcet method, the
+               <a href="http://en.wikipedia.org/wiki/Condorcet_method">Wikipedia
+                 entry</a> is fairly informative.
+           </p>
            <table class="vote">
              <caption class="center"><strong>The Beat Matrix</strong></caption>
              <tr><th colspan="$max_choices" class="center">Option</th></tr>
