@@ -340,8 +340,14 @@ replot
 
 
     echo "$page_top" > ${html_dir}/index.html
-    if [ -e "$html_dir/results.html" ]; then
-        cat "$html_dir/results.html" >> ${html_dir}/index.html
+    if [ -e "$html_dir/quorum.inc" ]; then
+        cat "$html_dir/quorum.inc" >> ${html_dir}/index.html
+    fi
+    if [ -e "$html_dir/majority.inc" ]; then
+        cat "$html_dir/majority.inc" >> ${html_dir}/index.html
+    fi
+    if [ -e "$html_dir/results.inc" ]; then
+        cat "$html_dir/results.inc" >> ${html_dir}/index.html
     fi
     echo "$page_bottom" >> ${html_dir}/index.html
 
