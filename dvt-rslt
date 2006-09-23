@@ -117,7 +117,9 @@ sub winner {
   open (RSLT_OUT, ">$html_rslt") || die "Could not open $html_rslt:$!";
   open (QURM_OUT, ">$html_qurm") || die "Could not open $html_qurm:$!";
   open (MJRT_OUT, ">$html_mjrt") || die "Could not open $html_mjrt:$!";
-  chmod $Config{"File_Mask"}, "$html_file";
+  chmod $Config{"File_Mask"}, "$html_rslt";
+  chmod $Config{"File_Mask"}, "$html_qurm";
+  chmod $Config{"File_Mask"}, "$html_mjrt";
 
   my $now_string = gmtime;
   print RESULTS "Starting results calculation at $now_string\n\n";
