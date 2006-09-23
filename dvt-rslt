@@ -86,7 +86,9 @@ sub winner {
   my $quorum_file = $Config{"Quorum_File"};
   my $tallyfile   = $Config{'Tally_File'};
   my $max_choices = $Config{'Max_Choices'};
-  my $html_file   = $Config{'HTML_Result'};
+  my $html_rslt   = $Config{'HTML_Result'};
+  my $html_qurm   = $Config{'HTML_Result'};
+  my $html_mjrt   = $Config{'HTML_Result'};
   my $results     = $Config{'Results'};
   my $graph       = $Config{'Graph'};
 
@@ -112,7 +114,9 @@ sub winner {
   # OK. Start creating an output file.
   open (RESULTS, ">$results") || die "Could not open $results:$!";
   chmod $Config{"File_Mask"}, "$results";
-  open (HTMLOUT, ">$html_file") || die "Could not open $html_file:$!";
+  open (RSLT_OUT, ">$html_rslt") || die "Could not open $html_rslt:$!";
+  open (QURM_OUT, ">$html_qurm") || die "Could not open $html_qurm:$!";
+  open (MJRT_OUT, ">$html_mjrt") || die "Could not open $html_mjrt:$!";
   chmod $Config{"File_Mask"}, "$html_file";
 
   my $now_string = gmtime;
@@ -145,7 +149,7 @@ sub winner {
       }
     }
   }
-  print HTMLOUT <<PREAMBLE;
+  print RSLT_OUT <<PREAMBLE;
             <p>
                In the following table, tally[row x][col y] represents
                the votes that option x received over option y. A 
@@ -161,7 +165,7 @@ PREAMBLE
   for my $opt (0..($max_choices - 1)) {
     print RESULTS "Option ", $opt + 1, " \"", $Config{"Option_" . ($opt + 1)},
       "\"\n";
-    print HTMLOUT "<li>Option ", $opt + 1, " \"", 
+    print RSLT_OUT "<li>Option ", $opt + 1, " \"", 
       $Config{"Option_" . ($opt + 1)}, "\"</li>\n";
   }
   print RESULTS <<EOF;
@@ -171,7 +175,7 @@ option x received over option y.
 
 EOF
   ;
-  print HTMLOUT <<POSTAMBLE;
+  print RSLT_OUT <<POSTAMBLE;
            </ul>
            <table class="vote">
              <caption class="center"><strong>The Beat Matrix</strong></caption>
@@ -185,34 +189,34 @@ POSTAMBLE
   print RESULTS " " x10;
   for my $col (0..($max_choices - 1)) {
     printf RESULTS " % 4d ", $col + 1;
-    printf HTMLOUT "                   <th> % 4d </th>\n", $col + 1;
+    printf RSLT_OUT "                   <th> % 4d </th>\n", $col + 1;
   }
 
   print RESULTS "\n";
   print RESULTS " " x10, "  === " x $max_choices, "\n";
 
-  print HTMLOUT "              </tr>\n";
+  print RSLT_OUT "              </tr>\n";
 
   for my $row (0..($max_choices - 1)) {
     printf RESULTS "Option %d  ", $row + 1;
-    printf HTMLOUT "                 <tr>\n";
-    printf HTMLOUT "                   <th>Option %d  </th>\n", $row + 1;
+    printf RSLT_OUT "                 <tr>\n";
+    printf RSLT_OUT "                   <th>Option %d  </th>\n", $row + 1;
     for my $col (0..($max_choices - 1)) {
       if ($row == $col) {
-        printf HTMLOUT "                   <td>\&nbsp;</td>\n";
+        printf RSLT_OUT "                   <td>\&nbsp;</td>\n";
         printf RESULTS "      ", $Beat_Matrix[$row][$col];
       } else {
-        printf HTMLOUT "                   <td> % 4d </td>\n", $Beat_Matrix[$row][$col];
+        printf RSLT_OUT "                   <td> % 4d </td>\n", $Beat_Matrix[$row][$col];
         printf RESULTS " % 4d ", $Beat_Matrix[$row][$col];
       }
     }
-    printf HTMLOUT "                 </tr>\n";
+    printf RSLT_OUT "                 </tr>\n";
     print RESULTS "\n";
   }
   print RESULTS "\n\n";
-  print HTMLOUT "               </table>\n";
-  print HTMLOUT "              <p>\n";
-  print HTMLOUT <<EOEXP;
+  print RSLT_OUT "               </table>\n";
+  print RSLT_OUT "              <p>\n";
+  print RSLT_OUT <<EOEXP;
 
 Looking at row 2, column 1, $Config{Option_2}<br/>
 received $Beat_Matrix[1][0] votes over $Config{Option_1}<br/>
@@ -234,23 +238,23 @@ EOM
   
   my %Drop = ();
 
-  print HTMLOUT "              <h3>Quorum</h3>\n";
-  print HTMLOUT "              <ul>\n";
+  print QURM_OUT "              <h3>Quorum</h3>\n";
+  print QURM_OUT "              <ul>\n";
   foreach my $i (0..($max_choices - 2)) {
     if ($Beat_Matrix[$i][$max_choices - 1] < $K) {
       $Drop{$i}++;
-      print HTMLOUT "                <li>Dropping Option", $i + 1, 
+      print QURM_OUT "                <li>Dropping Option", $i + 1, 
         " \"", $Config{"Option_" . ($i + 1)}, "\" because of Quorum</li>\n";
       print RESULTS "Dropping Option", $i + 1, " \"", $Config{"Option_" . ($i + 1)}, 
         "\" because of Quorum\n";
     } else {
-      print HTMLOUT "                <li>Option", $i + 1, 
+      print QURM_OUT "                <li>Option", $i + 1, 
         " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] \&gt; $K</li>\n";
       print RESULTS "Option ", $i + 1, 
         " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K\n";
     }
   }
-  print HTMLOUT "              </ul>\n";
+  print QURM_OUT "              </ul>\n";
 
   print RESULTS "\n\n";
 
@@ -264,8 +268,8 @@ EOM
   #   is S; otherwise, its majority ratio is 1.
   #  Any (non-default) option which does not defeat the default option
   #  by its required majority ratio is dropped from consideration.
-  print HTMLOUT "              <h3>Majority</h3>\n";
-  print HTMLOUT "              <ul>\n";
+  print MJRT_OUT "              <h3>Majority</h3>\n";
+  print MJRT_OUT "              <ul>\n";
   foreach my $i (0..($max_choices - 2)) {
     next unless $Beat_Matrix[$max_choices - 1][$i];
     next if $Drop{$i};
@@ -276,9 +280,9 @@ EOM
     if ($ratio <= $Config{"Majority_" . ($i + 1)}) {
       # If the next line is commented out, we get a more verbose set of results
       $Drop{$i}++;
-      print HTMLOUT "                <li>Dropping Option", $i + 1, 
+      print MJRT_OUT "                <li>Dropping Option", $i + 1, 
         " because of Majority. ";
-      printf HTMLOUT " %6.3f (%d/%d) \&lt;= %d</li>\n",
+      printf MJRT_OUT " %6.3f (%d/%d) \&lt;= %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
@@ -289,9 +293,9 @@ EOM
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
     } else {
-      print HTMLOUT "                <li>Option", $i + 1, 
+      print MJRT_OUT "                <li>Option", $i + 1, 
         " passes Majority.\n";
-      printf HTMLOUT " %6.3f (%d/%d) \&gt; %d</li>\n",
+      printf MJRT_OUT " %6.3f (%d/%d) \&gt; %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
@@ -305,14 +309,14 @@ EOM
             $Config{"Majority_" . ($i + 1)};
     }
   }
-  print HTMLOUT "              </ul>\n";
+  print MJRT_OUT "              </ul>\n";
   print RESULTS "\n\n";
 
   my $done = 0;
   my %Defeats;
   # Initialize the Defeats matrix
-  print HTMLOUT "              <h3>Pair-wise defeats</h3>\n";
-  print HTMLOUT "              <ul>\n";
+  print RSLT_OUT "              <h3>Pair-wise defeats</h3>\n";
+  print RSLT_OUT "              <ul>\n";
   foreach my $i (0..($max_choices - 1)) {
     next if $Drop{$i};
     foreach my $j (($i + 1)..($max_choices - 1)) {
@@ -322,7 +326,7 @@ EOM
         $Defeats{$i}{$j}{for}     = $Beat_Matrix[$i][$j];
         $Defeats{$i}{$j}{against} = $Beat_Matrix[$j][$i];
 
-        print HTMLOUT "                <li>Option ", $i + 1, " defeats Option ",
+        print RSLT_OUT "                <li>Option ", $i + 1, " defeats Option ",
           $j + 1, sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n", $Beat_Matrix[$i][$j],
                           $Beat_Matrix[$j][$i], 
                           $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
@@ -336,7 +340,7 @@ EOM
         $Defeats{$j}{$i}{for}     = $Beat_Matrix[$j][$i];
         $Defeats{$j}{$i}{against} = $Beat_Matrix[$i][$j];
 
-        print HTMLOUT "                <li>Option ", $j + 1, " defeats Option ",
+        print RSLT_OUT "                <li>Option ", $j + 1, " defeats Option ",
           $i + 1, sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n", $Beat_Matrix[$j][$i],
                           $Beat_Matrix[$i][$j], 
                           $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
@@ -349,7 +353,7 @@ EOM
       }
     }
   }
-  print HTMLOUT "              </ul>\n";
+  print RSLT_OUT "              </ul>\n";
   print RESULTS "\n\n";
   my %BeatPath;
   my @Schwartz;
@@ -434,17 +438,17 @@ EOM
         }
       }
     }
-    print HTMLOUT "              <h3>The Schwartz Set contains</h3>\n";
-    print HTMLOUT "              <ul>\n";
+    print RSLT_OUT "              <h3>The Schwartz Set contains</h3>\n";
+    print RSLT_OUT "              <ul>\n";
     print RESULTS "The Schwartz Set contains:\n";
     foreach my $i (0 ..$#Schwartz) {
       next unless $Schwartz[$i];
-      print HTMLOUT "                <li>Option ", ($i + 1), " \"", 
+      print RSLT_OUT "                <li>Option ", ($i + 1), " \"", 
         $Config{"Option_" . ($i + 1)}, "\"</li>\n";
       print RESULTS "\t Option ", ($i + 1), " \"", 
         $Config{"Option_" . ($i + 1)}, "\"\n";
     }
-    print HTMLOUT "              </ul>\n";
+    print RSLT_OUT "              </ul>\n";
     print RESULTS "\n\n";
 
     # If there are defeats between options in the Schwartz set, we drop
@@ -538,26 +542,26 @@ EOM
     if (! $weak_count) {
       print RESULTS "\n", "-=" x 35, "\n";
       print RESULTS "-=" x 35, "\n\n";
-      print HTMLOUT "              <h3>The winners</h3>\n";
-      print HTMLOUT "              <ul>\n";
+      print RSLT_OUT "              <h3>The winners</h3>\n";
+      print RSLT_OUT "              <ul>\n";
       print RESULTS "The winners are:\n";
       foreach my $i (0 ..$#Schwartz) {
         next unless $Schwartz[$i];
-        print HTMLOUT "                <li>Option ", ($i + 1), " \"", 
+        print RSLT_OUT "                <li>Option ", ($i + 1), " \"", 
           $Config{"Option_" . ($i + 1)}, "\"</li>\n";
         print RESULTS "\t Option ", ($i + 1), " \"", 
           $Config{"Option_" . ($i + 1)}, "\"\n";
       }
-      print HTMLOUT "              </ul>\n";
+      print RSLT_OUT "              </ul>\n";
       print RESULTS "\n", "-=" x 35, "\n";
       print RESULTS "-=" x 35, "\n\n";
       last;
     } else {
       print RESULTS "Weakest Defeat(s): \n";
-      print HTMLOUT "              <h3>Weakest Defeat(s)</h3>\n";
-      print HTMLOUT "              <ul>\n";
+      print RSLT_OUT "              <h3>Weakest Defeat(s)</h3>\n";
+      print RSLT_OUT "              <ul>\n";
       foreach my $k (sort keys %Weakest) {
-        print HTMLOUT "                <li>Option ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
+        print RSLT_OUT "                <li>Option ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
           $Weakest{$k}{'Loser'} + 1, " by ",
             " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
               "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
@@ -569,8 +573,8 @@ EOM
               "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
                 "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'}, " votes\n";
       }
-      print HTMLOUT "              </ul>\n";
-      print HTMLOUT "              <p>Deleting weakest defeat(s)</p>\n";
+      print RSLT_OUT "              </ul>\n";
+      print RSLT_OUT "              <p>Deleting weakest defeat(s)</p>\n";
       print RESULTS "Deleting weakest defeat(s)\n\n";
       foreach my $k (sort keys %Weakest) {
         delete $Defeats{$Weakest{$k}{'Winner'}}{$Weakest{$k}{'Loser'}};
@@ -578,7 +582,7 @@ EOM
     }
   }
 
-  print HTMLOUT <<BOTTOM;
+  print RSLT_OUT <<BOTTOM;
               <p>
                Debian uses the Condorcet method voting.
                Simplistically, plain Condorcets method

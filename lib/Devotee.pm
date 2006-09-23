@@ -486,7 +486,9 @@ Version $main::Version
 		  "Tally_File"     => "tally.txt", # tally sheet 
 		  "Tally_Dummy"    => "dummy_tally.txt", # dummy tally sheet 
 		  "Voters_File"    => "voters.txt", # List of people who have voted
-		  "HTML_Result"    => "results.html",
+		  "HTML_Result"    => "results.inc",
+		  "HTML_Quorum"    => "quorum.inc",
+		  "HTML_Majority"  => "majority.inc",
 		  "Results"        => "results.txt",
 		  "Graph"          => "results.dot",
 		},
