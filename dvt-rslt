@@ -87,8 +87,8 @@ sub winner {
   my $tallyfile   = $Config{'Tally_File'};
   my $max_choices = $Config{'Max_Choices'};
   my $html_rslt   = $Config{'HTML_Result'};
-  my $html_qurm   = $Config{'HTML_Result'};
-  my $html_mjrt   = $Config{'HTML_Result'};
+  my $html_qurm   = $Config{'HTML_Quorum'};
+  my $html_mjrt   = $Config{'HTML_Majority'};
   my $results     = $Config{'Results'};
   my $graph       = $Config{'Graph'};
 
