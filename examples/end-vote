@@ -5,9 +5,9 @@
 # Created On       : Fri Dec 23 11:01:53 2005
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Dec 23 11:18:50 2005
+# Last Modified On : Tue Sep 26 13:11:40 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 8
+# Update Count     : 9
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -31,8 +31,14 @@ HTML_DIR=/home/srivasta/public_html
 #WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
 # Stop running devotee n cron
-cp -f ${CRON_DIR}/crontab             ${CRON_DIR}/crontab.old
-cp -f ${CRON_DIR}/crontab.novote      ${CRON_DIR}/crontab
+rm -f ${CRON_DIR}/cron.d/50-${VOTE}
+
+ballots=$(find ${BALLOT_DIR} -type f -name \*.blt)
+if [ -z "$ballots" ]; then 
+    rm -f ${CRON_DIR}/cron.d/60-vote-stats;
+fi
+
+cat ${CRON_DIR}/cron.d/* > ${CRON_DIR}/crontab
 /usr/bin/crontab ${CRON_DIR}/crontab
 
 # Stop accepting ballots

@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 11 21:48:18 2006
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat Mar 11 23:38:11 2006
+# Last Modified On : Tue Sep 26 13:15:05 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 3
+# Update Count     : 4
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -61,7 +61,7 @@ cd $VOTEDIR
 rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.pgp debian-keyring.pgp
 rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.gpg debian-keyring.gpg
 
-for i in ballot crontab.novote end-vote start-vote dvt-setup vote.stats; do
+for i in ballot crontab.top crontab.votestats end-vote start-vote dvt-setup vote.stats; do
     test ! -e $EXAMPLEDIR/$i || cp -f $EXAMPLEDIR/$i .
 done
 if [ -e $EXAMPLEDIR/devotee.conf ]; then
@@ -71,7 +71,7 @@ if [ -e $EXAMPLEDIR/devotee.conf ]; then
         $EXAMPLEDIR/devotee.conf > devotee.conf
 fi
 
-for i in crontab.novote crontab forward; do
+for i in crontab.vote forward; do
     if [ -e $EXAMPLEDIR/$i ]; then
         sed -e "s/%VOTE%/$VOTE/g" $EXAMPLEDIR/$i > $i
     fi
