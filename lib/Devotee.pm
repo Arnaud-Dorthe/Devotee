@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 23:08:52 2005
+# Last Modified On : Mon Oct 30 17:10:56 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 250
+# Update Count     : 251
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -458,6 +458,7 @@ Version $main::Version
 		  "Need_PGP"         => 1,
 		  "Need_LDAP"        => 1,
 		  "Sign_Ack"         => 1,
+		  "Vote_Ref"         => "vote_001",
 		  "Option_1"         => "None of the Above",
 		  "Option_2"         => "",
 		  "Option_3"         => "",
@@ -486,9 +487,9 @@ Version $main::Version
 		  "Tally_File"     => "tally.txt", # tally sheet 
 		  "Tally_Dummy"    => "dummy_tally.txt", # dummy tally sheet 
 		  "Voters_File"    => "voters.txt", # List of people who have voted
-		  "HTML_Result"    => "results.inc",
-		  "HTML_Quorum"    => "quorum.inc",
-		  "HTML_Majority"  => "majority.inc",
+		  "HTML_Result"    => "results.src",
+		  "HTML_Quorum"    => "quorum.src",
+		  "HTML_Majority"  => "majority.src",
 		  "Results"        => "results.txt",
 		  "Graph"          => "results.dot",
 		},

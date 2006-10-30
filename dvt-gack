@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 22:06:48 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sun Apr  9 14:00:48 2006
+# Last Modified On : Mon Oct 30 16:51:20 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 78
+# Update Count     : 80
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -104,6 +104,8 @@ sub generate_ack {
 
   my $aliasdb     = $Config{'Alias_DB'};
 
+  my $title       = $Config{'Title'} || '';
+
   opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
   my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
                           -f  "$workdir/$_" }   readdir(TALLY);
@@ -193,6 +195,7 @@ sub generate_ack {
     $body  = "Content-Type: text/plain\n";
     $body .= "\n";
     $body .= "\tThis is an acknowledgement for your vote [record $msg]\n";
+    $body .= " for the vote\n \"$title\"\n" if $title;
     $body .= " sent in on $date" if $date;
     $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
     $body .= "\n"                                  unless $origsubject;

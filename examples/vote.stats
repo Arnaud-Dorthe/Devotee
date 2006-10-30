@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 19 13:02:10 2005
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat Sep 23 17:59:37 2006
+# Last Modified On : Sat Oct 21 15:15:12 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 29
+# Update Count     : 30
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -55,7 +55,8 @@ for ballot in $ballots; do
     title=$(egrep ^Title $config | sed -e 's/^.*= *//' -e 's/; *$//')
     start_time=$(egrep ^Start_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
     end_time=$(egrep ^End_Time $config | sed -e 's/^.*= *//' -e 's/; *$//')
-    
+    vote_ref=$(egrep ^Vote_Ref $config | sed -e 's/^.*= *//' -e 's/; *$//')
+
     if [ ! -d "$html_dir" ]; then
         mkdir -p "$html_dir"
     fi

@@ -1,3 +1,18 @@
+2006-10-30  Manoj Srivastava  <srivasta@debian.org>
+
+	* dvt-rslt (winner):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-33
+		  Correctly refer to the file name including the vote
+		  number in the HTML we output.
+
+	* dvt-publish (publish):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-33
+		  Add the vote number for vote.debian.org
+
+	* dvt-gack (generate_ack):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-33
+		  Added the vote title to the ack sent back for a ballot. 
+
 2006-04-09  Manoj Srivastava  <srivasta@debian.org>
 
 	* dvt-gack (generate_ack):

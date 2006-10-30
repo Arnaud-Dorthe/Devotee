@@ -99,6 +99,7 @@ sub publish {
     if defined $Config{'SEC_Keyring'};
   my $pubring     = $Config{'PUB_Keyring'}
     if defined $Config{'PUB_Keyring'};
+  my $vote_ref    = $Config{'Vote_Ref'};
 
 
   my $passphrase = $Config{"Pass_Word"} if $Config{"Pass_Word"};
