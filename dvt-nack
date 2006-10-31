@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 17:59:36 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Thu Dec 22 22:17:37 2005
+# Last Modified On : Tue Oct 31 11:54:56 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 50
+# Update Count     : 53
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -128,6 +128,8 @@ sub send_nack {
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
   my $force       = $Config{'Force'};
+  my $title       = $Config{'Title'} || '';
+  my $vname       = $Config{'Vote_Name'} || '';
 
 
   opendir(NACK, $nackdir) || die "can't opendir $nackdir: $!";
@@ -175,6 +177,7 @@ sub send_nack {
 
     my $body = '';
     $body  = "\tThis is an error report about your vote [record $msg]\n";
+    $body .= " for the vote\n \"$title\"\n" if $title;
     $body .= " sent in on $date" if $date;
     $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
     $body .= "\n"                                  unless $origsubject;
@@ -184,6 +187,8 @@ sub send_nack {
     $body .= $err_msg         if $err_msg;
     $body .= "-=" x 35 . "\n" if $err_msg;
     $body .= "\tIf you have already voted again, please ignore this.\n";
+    $body .= "\n You can always get a new ballot by mailing \n" if $vname;
+    $body .= " ballot\@vote.debian.org with the subject \"$vname\"\n" if $vname;
 
     my $now_string  = gmtime;
     $body .= "\n  The time now is $now_string\n";

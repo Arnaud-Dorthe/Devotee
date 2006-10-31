@@ -5,9 +5,9 @@
 # Created On       : Thu Apr 18 21:22:35 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Oct 30 17:10:56 2006
+# Last Modified On : Tue Oct 31 11:47:49 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 251
+# Update Count     : 252
 # Status           : Unknown, Use with caution!
 # HISTORY          :
 # Description      :
@@ -459,6 +459,7 @@ Version $main::Version
 		  "Need_LDAP"        => 1,
 		  "Sign_Ack"         => 1,
 		  "Vote_Ref"         => "vote_001",
+		  "Vote_Name"        => "gr_fixme",
 		  "Option_1"         => "None of the Above",
 		  "Option_2"         => "",
 		  "Option_3"         => "",
