@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 14:28:14 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Wed Apr  6 00:33:48 2005
+# Last Modified On : Mon Mar  5 15:17:29 2007
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 35
+# Update Count     : 44
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -35,6 +35,7 @@ require 5.005;
 use Carp qw(carp croak);
 use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
+use Math::BigInt ':constant';
 
 =head1 NAME
 
@@ -72,6 +73,15 @@ well as the Option names themselves.
 
 =cut
 
+sub decode_base36 {
+    my ($t, $i)  = 0;
+    foreach(split //, reverse uc shift) {
+        $_ = ord($_) - ord('A') + 10 unless /\d/; 
+        $t += $_ * (36 ** $i++);
+    }
+    return $t;
+}
+
 sub parse_messages {
   my %params   = @_;
   die "Internal Error!" unless defined $params{'Configuration'};
@@ -90,7 +100,8 @@ sub parse_messages {
   my $force       = $Config{'Force'};
   my $uuid        = $Config{'UUID'};
 
-  my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
+  my @valid_options =
+      grep {m/^Option_[[:alnum:]]$/ && $Config{$_}; } sort keys %Config;
   my $maxchoices  = $#valid_options + 1;
 
   opendir(BODY, $bodydir) || die "can't opendir $workdir: $!";
@@ -116,13 +127,16 @@ sub parse_messages {
       s/#.*$//o;
       next if /^\s*$/o;
       $have_uuid++ if m/\Q$uuid\E/;
-      next unless /\[\s*(\d+)\s*\]\s*(Choice\s+(\d+):\s*(.*))$/;
+      next unless /\[\s*([[:alnum:]])\s*\]\s*(Choice\s+([[:alnum:]]):\s*(.*))$/;
 
-      my $rank = $1;
+      my $orig_rank = $1;
       my $option = $2;
-      my $candidate = $3;
+      my $orig_candidate = $3;
 
-      my $config_option = $Config{"Option_" . $candidate};
+      my $rank = decode_base36($orig_rank);
+      my $candidate = decode_base36($orig_candidate);
+
+      my $config_option = $Config{"Option_" . $orig_candidate};
       # remove leading and trailing spaces
       $config_option =~ s/\s+$//;
       $config_option =~ s/^\s+//;
@@ -141,23 +155,23 @@ sub parse_messages {
 
       if ($rank < 1 || $rank > $maxchoices) {
         $text .= "\n$_\n";
-        $text .= "Rank has to be at least 1 [$rank]]\n" if $rank < 1;
+        $text .= "Rank has to be at least 1 [$orig_rank]\n" if $rank < 1;
         $text .= "Rank has to be less than the number of candidate\n"
           if $rank > $maxchoices;
         $text .= "The number of candidates =  $maxchoices. \n"
           if $rank > $maxchoices;
-        $text .= "Your choice [$rank]\n"   if $rank > $maxchoices;
+        $text .= "Your choice [$orig_rank]\n"   if $rank > $maxchoices;
         $valid = -10 * $maxchoices;
         next;
       }
       if ($candidate < 1 || $candidate > $maxchoices) {
         $text .= "\n$_\n";
-        $text .= "Malformed ballot line: No such choice [$candidate]\n";
+        $text .= "Malformed ballot line: No such choice [$orig_candidate]\n";
         $valid = -10 * $maxchoices;
         next;
       }
       $valid++;
-      $rank{ $candidate } = $rank;
+      $rank{ $candidate } = $orig_rank;
     }
     close MESSAGE;
 
@@ -165,7 +179,7 @@ sub parse_messages {
       my $tally = "V: ";
       for my $candidate (1 .. $maxchoices) {
         #$tally .= sprintf("%02d", $rank{ $candidate }) if defined $rank{ $candidate };
-        $tally .= sprintf("%d", $rank{ $candidate }) if defined $rank{ $candidate };
+        $tally .= sprintf("%s", $rank{ $candidate }) if defined $rank{ $candidate };
         $tally .= '-'                            unless defined $rank{ $candidate };
       }
       $tally .= "\n";
@@ -254,8 +268,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 =cut
 
 
-
-1;
 
 __END__
 

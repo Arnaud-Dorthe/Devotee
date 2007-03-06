@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Sat Sep 23 18:44:28 2006
+# Last Modified On : Mon Mar  5 23:58:46 2007
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 158
+# Update Count     : 189
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -35,7 +35,8 @@ require 5.005;
 use Carp qw(carp croak);
 use Devotee;
 use Getopt::Long;
-
+use Math::BigInt ':constant';
+use Math::BigFloat;
 
 =head1 NAME
 
@@ -76,6 +77,16 @@ Quorum_File, Tally_File, Max_Choices, and Results.
 
 =cut
 
+
+sub decode_base36 {
+    my ($t, $i)  = 0;
+    foreach(split //, reverse uc shift) {
+        $_ = ord($_) - ord('A') + 10 unless /\d/; 
+        $t += $_ * (36 ** $i++);
+    }
+    return $t;
+}
+
 sub winner {
   my %params   = @_;
   die "Internal Error!" unless defined $params{'Configuration'};
@@ -85,7 +96,6 @@ sub winner {
 
   my $quorum_file = $Config{"Quorum_File"};
   my $tallyfile   = $Config{'Tally_File'};
-  my $max_choices = $Config{'Max_Choices'};
   my $html_rslt   = $Config{'HTML_Result'};
   my $html_qurm   = $Config{'HTML_Quorum'};
   my $html_mjrt   = $Config{'HTML_Majority'};
@@ -93,14 +103,22 @@ sub winner {
   my $graph       = $Config{'Graph'};
   my $vote_ref    = $Config{'Vote_Ref'};
 
+  # my $max_choices = $Config{'Max_Choices'};
+
+  # Assumption: There are no gaps in the choices listed in the options
+  # file; which means simple range checks suffice.
+  my @valid_options =
+      grep {m/^Option_[[:alnum:]]$/ && $Config{$_}; } sort keys %Config;
+  my $max_choices  = $#valid_options + 1;
+
   # The constitution defines the maximum value of K to be 5
-  my $K = 5;
+  my $K = Math::BigFloat->new(5.0);
 
   # FIXME: this really should be optional
   open(QUORUM, "$quorum_file") ||  die "Could not open $quorum_file:$!";
   while (<QUORUM>) {
     next unless m/\s*Quorum[^=]+=\s*(\S+)/;
-    $K = $1;
+    $K = Math::BigFloat->new("$1");
   }
 
   #   1. Given two options A and B, V(A,B) is the number of voters who
@@ -108,7 +126,7 @@ sub winner {
   my @Beat_Matrix = ();
   for my $row (0..$max_choices) {
     for my $col (0..$max_choices) {
-      $Beat_Matrix[$row][$col] = 0;
+      $Beat_Matrix[$row][$col] = Math::BigFloat->bzero();
     }
   }
 
@@ -133,7 +151,16 @@ sub winner {
     my $vote = $1;
     my $voter = $2;
 
-    my @rank = unpack "a" x $max_choices, $vote;
+    # my @rank = unpack "a" x $max_choices, $vote;
+    my @rank = ();
+    foreach my $rank (split //, uc $vote) {
+      if ($rank eq '-') {
+        push(@rank,$rank);
+      }
+      else {
+        push(@rank,decode_base36($rank));
+      }
+    }
     foreach my $i (0..($max_choices - 1)) {
       foreach my $j (($i + 1)..($max_choices - 1)) {
         if ($rank[$i] eq '-' && $rank[$j] eq '-') {
@@ -255,7 +282,7 @@ EOM
   print QURM_OUT "              <h3>Quorum</h3>\n";
   print QURM_OUT "              <ul>\n";
   foreach my $i (0..($max_choices - 2)) {
-    if ($Beat_Matrix[$i][$max_choices - 1] < $K) {
+    if ($K->bcmp($Beat_Matrix[$i][$max_choices - 1]) > 0) {
       $Drop{$i}++;
       print QURM_OUT "                <li>Dropping Option", $i + 1, 
         " \"", $Config{"Option_" . ($i + 1)}, "\" because of Quorum</li>\n";
@@ -288,10 +315,10 @@ EOM
     next unless $Beat_Matrix[$max_choices - 1][$i];
     next if $Drop{$i};
 
-    my $ratio = $Beat_Matrix[$i][$max_choices - 1] /
+    my $ratio = 1.0 * $Beat_Matrix[$i][$max_choices - 1] /
       $Beat_Matrix[$max_choices - 1][$i];
     $Ratio{$i} = sprintf("%.2f", $ratio);
-    if ($ratio <= $Config{"Majority_" . ($i + 1)}) {
+    if ($ratio < $Config{"Majority_" . ($i + 1)}) {
       # If the next line is commented out, we get a more verbose set of results
       $Drop{$i}++;
       print MJRT_OUT "                <li>Dropping Option", $i + 1, 
@@ -301,7 +328,7 @@ EOM
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
 
-      print RESULTS "Dropping Option ", $i + 1, " because of Majority.";
+      print RESULTS "Dropping Option ", $i + 1, " because of Majority. ($ratio)";
       printf RESULTS " %6.3f (%d/%d) < %d\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
@@ -309,7 +336,7 @@ EOM
     } else {
       print MJRT_OUT "                <li>Option", $i + 1, 
         " passes Majority.\n";
-      printf MJRT_OUT " %6.3f (%d/%d) \&gt; %d</li>\n",
+      printf MJRT_OUT " %6.3f (%d/%d) \&gt;= %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
@@ -317,7 +344,7 @@ EOM
 
       print RESULTS "Option ", $i + 1, " passes Majority.";
       print RESULTS "             ";
-      printf RESULTS " %6.3f (%d/%d) > %d\n",
+      printf RESULTS " %6.3f (%d/%d) >= %d\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
             $Config{"Majority_" . ($i + 1)};
@@ -643,7 +670,8 @@ BOTTOM
     print GRAPH ", fontname=\"Helvetica\", fontsize=10  ];\n";
 
     if ($Drop{$i}) {
-      if ($Beat_Matrix[$i][$max_choices - 1] >= $K) {
+      if ($K->bcmp($Beat_Matrix[$i][$max_choices - 1]) < 0) {
+
         # it met quorum, but still was dropped.
         # probably since it did not meet majority
         my $label = $Beat_Matrix[$max_choices -1][$i] - 
@@ -769,8 +797,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 =cut
 
 
-
-1;
 
 __END__
 
