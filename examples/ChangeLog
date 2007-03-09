@@ -1,3 +1,10 @@
+2007-03-09  Manoj Srivastava  <srivasta@debian.org>
+
+	* vote.stats (ballots):
+		  srivasta@debian.org--etch/devotee--devel--0.1--versionfix-1
+		  reset uid count for each vote, so a new vote does not
+		  carry over the umber of voters fro the previous vote.
+
 2006-10-31  Manoj Srivastava  <srivasta@debian.org>
 
 	* devotee.conf (Vote_Ref):
