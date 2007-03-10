@@ -5,9 +5,9 @@
 # Created On       : Thu Oct 16 12:08:43 2003
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Mon Mar  5 23:58:46 2007
+# Last Modified On : Sat Mar 10 09:42:54 2007
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 189
+# Update Count     : 203
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -86,6 +86,36 @@ sub decode_base36 {
     }
     return $t;
 }
+
+#for (1..9,A..Z){
+#    print "$_\t[", &decode_base36($_), "]\n";
+#}
+
+sub encode_base36 {
+  my $n = shift;
+  my $p = shift || 0;
+
+  croak __PACKAGE__ ."::encode_base36 -- non-nunmeric value: '$n'"
+    unless $n =~/^\d+$/;
+  croak __PACKAGE__ ."::encode_base36 -- invalid padding length: '$p'"
+    unless $p =~/^\d+$/;
+  my $s="";
+  return(0) if $n == 0;
+  while ( $n ) {
+    my $v = $n % 36;
+    if($v <= 9) {
+      $s .= $v;
+    } else {
+      $s .= chr(ord('A') - 10 + $v); 
+    }
+    $n = int $n / 36;
+  }
+  return "0" x ($p - length($s)) . reverse($s);
+}
+
+#for (1..35){
+#    print "$_\t[", &encode_base36($_), "]\n";
+#}
 
 sub winner {
   my %params   = @_;
@@ -195,10 +225,11 @@ sub winner {
 PREAMBLE
 
   for my $opt (0..($max_choices - 1)) {
-    print RESULTS "Option ", $opt + 1, " \"", $Config{"Option_" . ($opt + 1)},
+    print RESULTS "Option ", &encode_base36($opt + 1), " \"", 
+      $Config{"Option_" . &encode_base36($opt + 1)},
       "\"\n";
-    print RSLT_OUT "<li>Option ", $opt + 1, " \"", 
-      $Config{"Option_" . ($opt + 1)}, "\"</li>\n";
+    print RSLT_OUT "<li>Option ", &encode_base36($opt + 1), " \"", 
+      $Config{"Option_" . &encode_base36($opt + 1)}, "\"</li>\n";
   }
   print RESULTS <<EOF;
 
@@ -229,8 +260,9 @@ POSTAMBLE
   print RESULTS " " x18, "Option\n";
   print RESULTS " " x10;
   for my $col (0..($max_choices - 1)) {
-    printf RESULTS " % 4d ", $col + 1;
-    printf RSLT_OUT "                   <th> % 4d </th>\n", $col + 1;
+    printf RESULTS " % 4s ", &encode_base36($col + 1);
+    printf RSLT_OUT "                   <th> % 4s </th>\n", 
+      &encode_base36($col + 1);
   }
 
   print RESULTS "\n";
@@ -239,9 +271,10 @@ POSTAMBLE
   print RSLT_OUT "              </tr>\n";
 
   for my $row (0..($max_choices - 1)) {
-    printf RESULTS "Option %d  ", $row + 1;
+    printf RESULTS "Option %s  ", &encode_base36($row + 1);
     printf RSLT_OUT "                 <tr>\n";
-    printf RSLT_OUT "                   <th>Option %d  </th>\n", $row + 1;
+    printf RSLT_OUT "                   <th>Option %s  </th>\n",
+      &encode_base36($row + 1);
     for my $col (0..($max_choices - 1)) {
       if ($row == $col) {
         printf RSLT_OUT "                   <td>\&nbsp;</td>\n";
@@ -284,14 +317,17 @@ EOM
   foreach my $i (0..($max_choices - 2)) {
     if ($K->bcmp($Beat_Matrix[$i][$max_choices - 1]) > 0) {
       $Drop{$i}++;
-      print QURM_OUT "                <li>Dropping Option", $i + 1, 
-        " \"", $Config{"Option_" . ($i + 1)}, "\" because of Quorum</li>\n";
-      print RESULTS "Dropping Option", $i + 1, " \"", $Config{"Option_" . ($i + 1)}, 
-        "\" because of Quorum\n";
+      print QURM_OUT "                <li>Dropping Option", 
+        &encode_base36($i + 1), " \"", 
+          $Config{"Option_" . &encode_base36($i + 1)}, 
+            "\" because of Quorum</li>\n";
+      print RESULTS "Dropping Option", &encode_base36($i + 1), 
+        " \"", $Config{"Option_" . &encode_base36($i + 1)}, 
+          "\" because of Quorum\n";
     } else {
-      print QURM_OUT "                <li>Option", $i + 1, 
+      print QURM_OUT "                <li>Option", &encode_base36($i + 1), 
         " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] \&gt; $K</li>\n";
-      print RESULTS "Option ", $i + 1, 
+      print RESULTS "Option ", &encode_base36($i + 1), 
         " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K\n";
     }
   }
@@ -318,36 +354,37 @@ EOM
     my $ratio = 1.0 * $Beat_Matrix[$i][$max_choices - 1] /
       $Beat_Matrix[$max_choices - 1][$i];
     $Ratio{$i} = sprintf("%.2f", $ratio);
-    if ($ratio < $Config{"Majority_" . ($i + 1)}) {
+    if ($ratio < $Config{"Majority_" . &encode_base36($i + 1)}) {
       # If the next line is commented out, we get a more verbose set of results
       $Drop{$i}++;
-      print MJRT_OUT "                <li>Dropping Option", $i + 1, 
-        " because of Majority. ";
+      print MJRT_OUT "                <li>Dropping Option", 
+        &encode_base36($i + 1), " because of Majority. ";
       printf MJRT_OUT " %6.3f (%d/%d) \&lt;= %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
-            $Config{"Majority_" . ($i + 1)};
+            $Config{"Majority_" . &encode_base36($i + 1)};
 
-      print RESULTS "Dropping Option ", $i + 1, " because of Majority. ($ratio)";
+      print RESULTS "Dropping Option ", &encode_base36($i + 1),
+        " because of Majority. ($ratio)";
       printf RESULTS " %6.3f (%d/%d) < %d\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
-            $Config{"Majority_" . ($i + 1)};
+            $Config{"Majority_" . &encode_base36($i + 1)};
     } else {
-      print MJRT_OUT "                <li>Option", $i + 1, 
+      print MJRT_OUT "                <li>Option", &encode_base36($i + 1), 
         " passes Majority.\n";
       printf MJRT_OUT " %6.3f (%d/%d) \&gt;= %d</li>\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
-            $Config{"Majority_" . ($i + 1)};
+            $Config{"Majority_" . &encode_base36($i + 1)};
 
 
-      print RESULTS "Option ", $i + 1, " passes Majority.";
+      print RESULTS "Option ", &encode_base36($i + 1), " passes Majority.";
       print RESULTS "             ";
       printf RESULTS " %6.3f (%d/%d) >= %d\n",
         $ratio, $Beat_Matrix[$i][$max_choices - 1],
           $Beat_Matrix[$max_choices - 1][$i],
-            $Config{"Majority_" . ($i + 1)};
+            $Config{"Majority_" . &encode_base36($i + 1)};
     }
   }
   print MJRT_OUT "              </ul>\n";
@@ -367,30 +404,34 @@ EOM
         $Defeats{$i}{$j}{for}     = $Beat_Matrix[$i][$j];
         $Defeats{$i}{$j}{against} = $Beat_Matrix[$j][$i];
 
-        print RSLT_OUT "                <li>Option ", $i + 1, " defeats Option ",
-          $j + 1, sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n", $Beat_Matrix[$i][$j],
-                          $Beat_Matrix[$j][$i], 
-                          $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
+        print RSLT_OUT "                <li>Option ", &encode_base36($i + 1),
+          " defeats Option ", &encode_base36($j + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n",
+                    $Beat_Matrix[$i][$j],  $Beat_Matrix[$j][$i], 
+                    $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
 
-        print RESULTS "  Option ", $i + 1, " defeats Option ",
-          $j + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$i][$j],
-                          $Beat_Matrix[$j][$i], 
-                          $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
+        print RESULTS "  Option ", &encode_base36($i + 1), " defeats Option ",
+          &encode_base36($j + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.\n", 
+                    $Beat_Matrix[$i][$j],  $Beat_Matrix[$j][$i], 
+                    $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
       } elsif ($Beat_Matrix[$i][$j] < $Beat_Matrix[$j][$i]) {
         # j defeats i
         $Defeats{$j}{$i}{for}     = $Beat_Matrix[$j][$i];
         $Defeats{$j}{$i}{against} = $Beat_Matrix[$i][$j];
 
-        print RSLT_OUT "                <li>Option ", $j + 1, " defeats Option ",
-          $i + 1, sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n", $Beat_Matrix[$j][$i],
-                          $Beat_Matrix[$i][$j], 
-                          $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
+        print RSLT_OUT "                <li>Option ", &encode_base36($j + 1),
+          " defeats Option ", &encode_base36($i + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n",
+                    $Beat_Matrix[$j][$i],  $Beat_Matrix[$i][$j], 
+                    $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
 
 
-        print RESULTS "  Option ", $j + 1, " defeats Option ",
-          $i + 1, sprintf(" by (% 4d - % 4d) = %4d votes.\n", $Beat_Matrix[$j][$i],
-                          $Beat_Matrix[$i][$j], 
-                          $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
+        print RESULTS "  Option ", &encode_base36($j + 1), " defeats Option ",
+          &encode_base36($i + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.\n",
+                    $Beat_Matrix[$j][$i],  $Beat_Matrix[$i][$j], 
+                    $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
       }
     }
   }
@@ -484,10 +525,10 @@ EOM
     print RESULTS "The Schwartz Set contains:\n";
     foreach my $i (0 ..$#Schwartz) {
       next unless $Schwartz[$i];
-      print RSLT_OUT "                <li>Option ", ($i + 1), " \"", 
-        $Config{"Option_" . ($i + 1)}, "\"</li>\n";
-      print RESULTS "\t Option ", ($i + 1), " \"", 
-        $Config{"Option_" . ($i + 1)}, "\"\n";
+      print RSLT_OUT "                <li>Option ", &encode_base36($i + 1), 
+        " \"", $Config{"Option_" . &encode_base36($i + 1)}, "\"</li>\n";
+      print RESULTS "\t Option ", &encode_base36($i + 1), " \"", 
+        $Config{"Option_" . &encode_base36($i + 1)}, "\"\n";
     }
     print RSLT_OUT "              </ul>\n";
     print RESULTS "\n\n";
@@ -588,10 +629,10 @@ EOM
       print RESULTS "The winners are:\n";
       foreach my $i (0 ..$#Schwartz) {
         next unless $Schwartz[$i];
-        print RSLT_OUT "                <li>Option ", ($i + 1), " \"", 
-          $Config{"Option_" . ($i + 1)}, "\"</li>\n";
-        print RESULTS "\t Option ", ($i + 1), " \"", 
-          $Config{"Option_" . ($i + 1)}, "\"\n";
+        print RSLT_OUT "                <li>Option ", &encode_base36($i + 1), " \"", 
+          $Config{"Option_" . &encode_base36($i + 1)}, "\"</li>\n";
+        print RESULTS "\t Option ", &encode_base36($i + 1), " \"", 
+          $Config{"Option_" . &encode_base36($i + 1)}, "\"\n";
       }
       print RSLT_OUT "              </ul>\n";
       print RESULTS "\n", "-=" x 35, "\n";
@@ -602,14 +643,16 @@ EOM
       print RSLT_OUT "              <h3>Weakest Defeat(s)</h3>\n";
       print RSLT_OUT "              <ul>\n";
       foreach my $k (sort keys %Weakest) {
-        print RSLT_OUT "                <li>Option ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
-          $Weakest{$k}{'Loser'} + 1, " by ",
+        print RSLT_OUT "                <li>Option ", 
+          &encode_base36($Weakest{$k}{'Winner'} + 1), " beats Option ",
+          &encode_base36($Weakest{$k}{'Loser'} + 1), " by ",
             " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
               "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
-                "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'}, " votes</li>\n";
+                "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'},
+                  " votes</li>\n";
 
-        print RESULTS "\tOption ", $Weakest{$k}{'Winner'} + 1, " beats Option ",
-          $Weakest{$k}{'Loser'} + 1, " by ",
+        print RESULTS "\tOption ", &encode_base36($Weakest{$k}{'Winner'} + 1),
+          " beats Option ", &encode_base36($Weakest{$k}{'Loser'} + 1), " by ",
             " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
               "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
                 "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'}, " votes\n";
@@ -653,7 +696,7 @@ BOTTOM
     # winners (who get a different color fill)
 
     # Print Node information.
-    my $NodeA = $Config{"Option_" . ($i + 1)};
+    my $NodeA = $Config{"Option_" . &encode_base36($i + 1)};
     # Add majority ratio
     $NodeA   .= "\\n$Ratio{$i}" if $Ratio{$i};
 
@@ -679,7 +722,7 @@ BOTTOM
         # my $win;
         # $win = $label;
         # "weight=", ((($win<0)?-1:1) * 1000/$win),
-        print GRAPH " \"", $Config{"Option_" . $max_choices}, 
+        print GRAPH " \"", $Config{"Option_" . &encode_base36($max_choices)}, 
           "\" -> \"$NodeA\" [ label=\"$label\" ];\n";
 
         foreach my $j (keys %Drop) {
@@ -687,7 +730,7 @@ BOTTOM
           my $label = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
           next unless $label > 0;
           #  This is the second node in the Edge
-          my $NodeB = $Config{"Option_" . ($j + 1)};
+          my $NodeB = $Config{"Option_" . &encode_base36($j + 1)};
           # Add majority ratio
           $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
           # Print the edge information.
@@ -729,7 +772,7 @@ BOTTOM
         my $label = $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i];
 
         #  This is the second node in the Edge
-        my $NodeB = $Config{"Option_" . ($j + 1)};
+        my $NodeB = $Config{"Option_" . &encode_base36($j + 1)};
         # Add majority ratio
         $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
 
