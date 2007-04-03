@@ -190,6 +190,10 @@ sub invoke_gpg {
     }
   }
   waitpid $pid, 0;        # clean up the finished GnuPG process
+  # warn "DEBUG: ACTION: $action";
+  # warn "DEBUG: STDOUT: $stdout";
+  # warn "DEBUG: STDERR: $stderr";
+  # warn "DEBUG: STATUS: $status";
   return ( $stdout, $stderr, $status );
 }
 
@@ -296,7 +300,9 @@ sub verify_messages {
 
     my $text;
     $dvt->log_message($msg . ".good", $status);
-    if (grep {m/GOODSIG/} @status) {
+    my @goodsig=();
+    @goodsig=grep {m/GOODSIG/} @status;
+    if (scalar(@goodsig)) {
       my $fingerprint;
       my $date;
       my $timestamp;
@@ -413,7 +419,9 @@ sub verify_messages {
       my @status = split /\n/, $status; # read the status info
 
       $dvt->log_message($msg . ".good", $status);
-      if (grep {m/GOODSIG/} @status) {
+      @goodsig=();
+      @goodsig=grep {m/GOODSIG/} @status;
+      if (scalar(@goodsig)) {
         my $fingerprint;
         my $date;
         my $timestamp;
@@ -484,7 +492,8 @@ sub verify_messages {
       }
       else {
         # Failure.
-        $text = "There was a problem verifying the signature on the ballot.\n";
+        $text    = "There was a problem verifying the signature on the ballot.\n";
+        $text   .= "I even tried compensating for alternate CR/LF handling, to no avail.\n";
         $text   .=  "-=" x 35;
         $text   .= "\n";
         $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
@@ -508,6 +517,7 @@ sub verify_messages {
       $text   .= "\n";
       $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
       $text   .= "\n";
+      $text   .= "STATUS:\n";
       $text   .= join "", @status;
       $text   .=  "-=" x 35;
       $text   .= "\n\n";
@@ -560,7 +570,9 @@ sub verify_messages {
     #warn "DEBUG:STT $status";
     my $text;
     $dvt->log_message($msg . ".good", $status);
-    if (grep {m/DECRYPTION_OKAY/} @status) {
+    my @decrypt_failed=();
+    @decrypt_failed=grep {m/DECRYPTION_FAILED/} @status;
+    if (! scalar(@decrypt_failed)) {
       my $fingerprint;
       my $date;
       my $timestamp;
@@ -649,11 +661,12 @@ sub verify_messages {
     }
     else {
       # Failure.
-      $text = "There was a problem verifying the signature on the ballot.\n";
+      $text = "There was a problem decrypting the ballot.\n";
       $text   .=  "-=" x 35;
       $text   .= "\n";
       $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
       $text   .= "\n";
+      $text   .= "Status:\n";
       $text   .= join "\n", @status;
       $text   .=  "-=" x 35;
       $text   .= "\n\n";

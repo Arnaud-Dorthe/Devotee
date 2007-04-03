@@ -5,9 +5,9 @@
 # Created On       : Sat Mar 19 13:02:10 2005
 # Created On Node  : glaurung.internal.golden-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Mar  9 17:46:26 2007
+# Last Modified On : Sat Oct 21 15:15:12 2006
 # Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 31
+# Update Count     : 30
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -81,6 +81,7 @@ for ballot in $ballots; do
     nack=$(ls -1 $workdir/nack/*.sent 2>/dev/null | wc -l; )
     missing=$(($ack - $gack))
     bad_ballot=$(($ldap  - $tally))
+
     uids=0
     if [ $ldap -gt 0 ]; then
         uids=$(cd $workdir/ldap/; egrep ^uid: $(cd $workdir/tally; ls -1 *.raw) 2>/dev/null | \
