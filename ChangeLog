@@ -1,3 +1,13 @@
+2007-04-04  Manoj Srivastava  <srivasta@debian.org>
+
+	* dvt-gpg (verify_messages):
+		  srivasta@debian.org--lenny/devotee--devel--0.1--base-0
+		  Handle RFC 1847 Encapsulation -- a signed ballot in the
+		  body of an unsigned, encrypted mail message.  This
+		  required us to parse the body of the mail, and save the
+		  two parts that resulted. Now devotee is fully RFC 3156
+		  compliant.
+
 2007-04-03  Manoj Srivastava  <srivasta@debian.org>
 
 	* dvt-gpg (verify_messages):

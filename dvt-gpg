@@ -43,6 +43,12 @@ use IO::Select;
 use GnuPG::Interface;
 use DB_File;
 
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
 
 =head1 NAME
 
@@ -219,6 +225,7 @@ sub verify_messages {
   my $checkdir    = $Config{"Check_Dir"};
   my $nackdir     = $Config{"Nack_Dir"};
   my $sigdir      = $Config{"Sig_Dir"};
+  my $tmpdir      = $Config{'Temp_Dir'};
 
   my $msg_suffix  = $Config{'Msg_Suffix'};
   my $msg_preffix = $Config{'Msg_Preffix'};
@@ -239,14 +246,6 @@ sub verify_messages {
   my $encrypted_suffix  = $Config{"Encrypted_Suffix"};
 
 
-
-  opendir(BODY, $bodydir) || die "can't opendir $bodydir: $!";
-  my @files     = grep { -f "$bodydir/$_" }  readdir(BODY);
-  my @messages  = grep { m/${msg_preffix}\d+\.${body_suffix}$/ }       @files;
-  my @encrypted = grep { m/${msg_preffix}\d+\.${encrypted_suffix}$/ }  @files;
-  closedir(BODY);
-  my $msg       ;
-
   if ($force && -e $replaydb) {
     unlink $replaydb;
   }
@@ -254,6 +253,14 @@ sub verify_messages {
   my %Replay;
   my $replay_ref = tie %Replay, 'DB_File', $replaydb, O_RDWR|O_CREAT, $Config{"File_Mask"},
     $DB_HASH or die "Cannot open file $replaydb: $!\n" ;
+
+
+  opendir(BODY, $bodydir) || die "can't opendir $bodydir: $!";
+  my @files     = grep { -f "$bodydir/$_" }  readdir(BODY);
+  my @messages  = grep { m/${msg_preffix}\d+\.${body_suffix}$/ }       @files;
+  my @encrypted = grep { m/${msg_preffix}\d+\.${encrypted_suffix}$/ }  @files;
+  closedir(BODY);
+  my $msg       ;
 
 
   foreach $msg (sort @messages) {
@@ -351,7 +358,7 @@ sub verify_messages {
         print NACK "\tThis ballot is being rejected, please vote again.\n\n";
         close NACK;
         $dvt->log_message($msg, $text);
-      } 
+      }
       else {
         $Replay{"$radix"} = $text;
         if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
@@ -625,25 +632,156 @@ sub verify_messages {
         $dvt->log_message($msg, $text);
       }
       else {
-        $Replay{"$radix"} = $text;
-        if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
-          # Failure.
-          $text = "There was a problem verifying the signature on the ballot.\n";
-          $text   .=  "GPG did not return a fingerprint or key id\n";
-          $text   .=  "-=" x 35;
-          $text   .= "\n";
-          $text   .= join "\n", grep { m/^\s*gpg:/ } @result;
-          $text   .= "\n";
-          $text   .= join "", @status;
-          $text   .=  "-=" x 35;
-          $text   .= "\n\n";
-          open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
-            die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
-          chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
-          print NACK $text;
-          print NACK "\tThis ballot is being rejected.\n\n";
-          close NACK;
-          $dvt->log_message($msg, $text);
+        $Replay{"$radix"} = $text if $radix;
+        if ((! $fingerprint || $fingerprint =~ /^\s*$/g) ||
+            (! $keyid       || $keyid =~ /^\s*$/g)) {
+          # Failure. We know decryption succeeded, so perhaps it uses
+          # RFC 1847 Encapsulation. "$bodydir/$msg_base.${body_suffix}"
+          # contains the message that can be the signed bit.
+          my $parser = new MIME::Parser;
+          $parser->output_dir("$tmpdir");
+          $parser->output_to_core(0);
+
+          my $entity;
+
+          my $failed='';
+          eval {$entity = $parser->parse_open("$bodydir/$msg_base.${body_suffix}"); };
+          if ($@) {
+            $failed = "$@";
+          }
+          else {
+            # OK, so we have a parsed entity
+            my $num_parts = $entity->parts;
+            if ($num_parts == 2) {
+              my $data = $entity->parts(0)->as_string;
+              my $ret = open(DATA, ">$bodydir/$msg_base.${body_suffix}.inner");
+              chmod $Config{"File_Mask"}, "$bodydir/$msg_base.${body_suffix}.inner";
+              print DATA $data;
+              close(DATA);
+              $data = $entity->parts(1)->as_string;
+              $ret = open(DATA, ">$bodydir/$msg_base.${body_suffix}.insig");
+              chmod $Config{"File_Mask"}, "$bodydir/$msg_base.${body_suffix}.insig";
+              print DATA $data;
+              close(DATA);
+              
+              # Now we have a body we can check
+              my @n_gpg_args = ("--always-trust");
+              push (@n_gpg_args, "--keyring", "$gpgring") if  $gpgring;
+              push (@n_gpg_args, "--keyring", "$pgpring") if  $pgpring;
+
+              my $n_command_args =
+                [ "--verify", 
+                  "$bodydir/$msg_base.${body_suffix}.insig",
+                  "$bodydir/$msg_base.${body_suffix}.inner"
+                ];
+
+              my ( $n_stdout, $n_stderr, $n_status ) = ("", "", "");
+              ($n_stdout, $n_stderr, $n_status) =
+                invoke_gpg(
+                           'Configuration' => $dvt,
+                           'GnuPG Args' => \@n_gpg_args,
+                           'GnuPG Cmd'  => 'Verify',
+                           'Command Args' => $n_command_args
+                          );
+              # now we read the output
+              my @n_output = split /\n/, $n_stdout; # reading the output
+              my @n_result = split /\n/, $n_stderr; # reading the error
+              my @n_status = split /\n/, $n_status; # read the status info
+              my @goodsig=();
+              my @n_goodsig=grep {m/GOODSIG/} @n_status;
+              if (scalar(@n_goodsig)) {
+                my $fingerprint;
+                my $date;
+                my $timestamp;
+                my $radix;
+                my $keyid;
+                my $username;
+                my $subkey;
+                for (@n_status) {
+                  # Newer GPG versions have extended subkey and expiry data
+                  if (m/^\s*\[GNUPG:\]\s+VALIDSIG
+                        \s+(\S+)  #  <fingerprint in hex>
+                        \s+(\S+)       # <sig_creation_date>
+                        \s+(\S+)       # <sig-timestamp>
+                        \s+\S+ # <expire-timestamp>
+                        \s+\S+ # <sig-version>
+                        \s+\S+ # <reserved>
+                        \s+\S+ # <pubkey-algo>
+                        \s+\S+ # <hash-algo>
+                        \s+\S+ # <sig-class>
+                        \s+(\S+)       # <primary-key-fpr>
+                        \s*$
+                       /x) {
+                    ($subkey, $date, $timestamp, $fingerprint) = ($1, $2, $3, $4);
+                  }
+                  elsif (m/^\s*\[GNUPG:\] VALIDSIG\s+(\S+)\s+(\S+)\s+(\S+)/) {
+                    ($fingerprint, $date, $timestamp) = ($1, $2, $3);
+                  }
+                  elsif (m/^\s*\[GNUPG:\] SIG_ID\s+(\S+)\s+(\S+)\s+(\S+)/) {
+                    ($radix, $date, $timestamp) = ($1, $2, $3);
+                  }
+                  elsif (m/^\s*\[GNUPG:\] GOODSIG\s+(\S+)\s+(.+)$/) {
+                    ($keyid, $username) = ($1, $2);
+                  }
+                }
+                if (defined $Replay{"$radix"}) {
+                  $failed  ="The signature on the message, though valid, has been\n";
+                  $failed .= "seen before.  This could be a potential replay attack";
+                }
+                else {
+                  $Replay{"$radix"} = $text;
+                  if ($fingerprint =~ /^\s*$/g || $keyid =~ /^\s*$/g) {
+                    # Failure.
+                    $failed="Failed to find valid keyid in message body";
+                  }
+                  else {
+                    open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
+                      die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+                    chmod $Config{"File_Mask"}, "$checkdir/$msg_base.$msg_suffix";
+                    print GOOD $fingerprint, "\n";
+                    close GOOD;
+                    open(SIG, ">>$sigdir/$msg_base.$msg_suffix") ||
+                      die "Could not open $checkdir/$msg_base.$msg_suffix:$!";
+                    chmod $Config{"File_Mask"}, "$sigdir/$msg_base.$msg_suffix";
+                    print SIG $keyid, "\n";
+                    close SIG;
+                  }
+                }
+              }
+              else {
+                $failed = "Failed to find valid signed message in mail body\n$n_status";
+              }
+            }
+            else {
+              $failed = "Message not signed.";
+            }
+          }
+          if ($failed) {
+            $text  = "There was a problem verifying the signature on the ballot.\n";
+            $text .= "FAILURE:\n Reason: $failed\n\n";
+            $text .= "The ballot decrypted correctly, but was not signed\n";
+            $text .= "So this means that eithe the ballot was not signed at all\n";
+            $text .= "or that it uses RFC 1847 Encapsulation, where the ballot\n";
+            $text .= "is first signed as a multipart/signature body, and then\n";
+            $text .= "encrypted to form the final multipart/encrypted body --\n";
+            $text .= "but something went wrong in verifying the signature.\n";
+            $text .= "In either case, the ballot is being rejected.\n";
+            $text .= "\n";
+            $text .= "-=" x 35;
+            $text .= "\n";
+            $text .= join "\n", grep { m/^\s*gpg:/ } @result;
+            $text .= "\n";
+            $text .= join "", @status;
+            $text .=  "-=" x 35;
+            $text .= "\n\n";
+            open(NACK, ">>$nackdir/$msg_base.$msg_suffix") ||
+              die "Could not open $nackdir/$msg_base.$msg_suffix:$!";
+            chmod $Config{"File_Mask"}, "$nackdir/$msg_base.$msg_suffix";
+            print NACK $text;
+            print NACK "\tThis ballot is being rejected.\n\n";
+            close NACK;
+            $dvt->log_message($msg, $text);
+          }
         }
         else {
           open(GOOD, ">>$checkdir/$msg_base.$msg_suffix") ||
@@ -660,7 +798,7 @@ sub verify_messages {
       }
     }
     else {
-      # Failure.
+      # Failure to decrypt
       $text = "There was a problem decrypting the ballot.\n";
       $text   .=  "-=" x 35;
       $text   .= "\n";
