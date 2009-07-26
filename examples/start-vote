@@ -34,3 +34,7 @@ cat ${CRON_DIR}/cron.d/* > ${CRON_DIR}/crontab
 
 /usr/bin/crontab ${CRON_DIR}/crontab
 
+echo "bootstrapping quorum computation ..."
+$BASEDIR/bin/dvt-quorum -c ${WORK_DIR}/devotee.conf
+
+echo "all done."
