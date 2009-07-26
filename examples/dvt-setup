@@ -35,6 +35,8 @@
 
 set -e
 
+export LANG=C
+
 VOTE=$1
 if [ -z "$VOTE" ]; then
     echo >&2 No vote specified. ABorting
