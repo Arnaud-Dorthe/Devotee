@@ -53,6 +53,7 @@ export PERLLIB
 BALLOTDIR=$basedir/ballots/
 VOTEDIR=$basedir/data/$VOTE
 
+echo "creating vote dir $VOTEDIR ..."
 mkdir -p $VOTEDIR
 
 
@@ -80,4 +81,10 @@ for i in crontab.vote forward; do
     fi
 done
 
+echo "bootstrap devotee ..."
 perl -w $PERLLIB/Devotee.pm --top_dir=. -m  --nosign_ack
+
+echo "all done."
+echo "* fill the data in $VOTEDIR/devotee.conf"
+echo "* cd data/$VOTE ; ./create-ballot"
+
