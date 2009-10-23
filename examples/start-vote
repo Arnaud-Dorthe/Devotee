@@ -24,14 +24,14 @@ CRON_DIR=/home/srivasta/etc
 MAIL_DIR=/org/vote.debian.org/mail
 WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
+echo "setting up .forward-devotee-${VOTE} ..."
 cp -f ${WORK_DIR}/forward ${MAIL_DIR}/.forward-${VOTE}
 
+echo "setting up cron jobs ..."
 cp -f ${WORK_DIR}/crontab.top       ${CRON_DIR}/cron.d/00-crontab-top
 cp -f ${WORK_DIR}/crontab.vote      ${CRON_DIR}/cron.d/50-${VOTE}
 cp -f ${WORK_DIR}/crontab.votestats ${CRON_DIR}/cron.d/60-vote-stats
-
 cat ${CRON_DIR}/cron.d/* > ${CRON_DIR}/crontab
-
 /usr/bin/crontab ${CRON_DIR}/crontab
 
 echo "bootstrapping quorum computation ..."
