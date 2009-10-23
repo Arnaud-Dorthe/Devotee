@@ -5,9 +5,9 @@
 # Created On       : Fri Mar 29 00:51:07 2002
 # Created On Node  : glaurung.green-gryphon.com
 # Last Modified By : Manoj Srivastava
-# Last Modified On : Fri Dec 23 07:59:51 2005
-# Last Machine Used: glaurung.internal.golden-gryphon.com
-# Update Count     : 54
+# Last Modified On : Tue Jul  8 16:09:49 2008
+# Last Machine Used: anzu.internal.golden-gryphon.com
+# Update Count     : 55
 # Status           : Unknown, Use with caution!
 # HISTORY          : 
 # Description      : 
@@ -46,6 +46,15 @@ use vars qw($msg $ldapdir);
 dvt-ldap - query the LDAP server to determine the unique ID for voters
 
 =cut
+
+=head1 VERSION
+
+Version 0.01
+
+=cut
+
+our $VERSION = '0.01';
+
 
 =head1 SYNOPSIS
 
