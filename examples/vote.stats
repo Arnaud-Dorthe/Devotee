@@ -32,7 +32,6 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
-
 if [ ! -d $HOME ]; then
     exit 2;
 fi
@@ -95,7 +94,7 @@ for ballot in $ballots; do
     if [  $tally -gt 0 ]; then
         dirs="spool tally"
     else
-        k=$(date --rfc --utc -d "$start_time UTC");
+        k=$(date -R --utc -d "$start_time UTC");
         echo $k 0 > ${scratchdir}/tally.dat
     fi
 
@@ -104,11 +103,11 @@ for ballot in $ballots; do
         if [ $m -gt 0 ]; then
             ls -ltr $workdir/$dir/*.raw | awk '{print $6, $7, $8;}' | while read i; 
               do 
-              k=$(date --rfc --utc -d "$i CDT"); 
+              k=$(date -R --utc -d "$i CDT"); 
               echo $k $j; j=$(($j +1)); 
             done > ${scratchdir}/$dir.dat
         else
-            k=$(date --rfc --utc -d "$start_time UTC");
+            k=$(date -R --utc -d "$start_time UTC");
             echo $k 0 > ${scratchdir}/$dir.dat
         fi
     done
@@ -117,7 +116,7 @@ for ballot in $ballots; do
     if [  $ack -gt 0 ]; then
         candidate="ack"
     else
-        k=$(date --rfc --utc -d "$start_time UTC");
+        k=$(date -R --utc -d "$start_time UTC");
         echo $k 0 > ${scratchdir}/ack.dat
     fi
     if [ $nack -gt 0 ]; then
@@ -127,7 +126,7 @@ for ballot in $ballots; do
             candidate="$candidate nack"
         fi
     else
-        k=$(date --rfc --utc -d "$start_time UTC");
+        k=$(date -R --utc -d "$start_time UTC");
         echo $k 0 > ${scratchdir}/nack.dat
     fi
 
@@ -138,16 +137,16 @@ for ballot in $ballots; do
                 ls -ltr $workdir/$dir/*.sent |
                 awk '{print $6, $7, $8;}' | while read i; 
                   do 
-                  k=$(date --rfc --utc -d "$i CDT"); 
+                  k=$(date -R --utc -d "$i CDT"); 
                   echo $k $j; j=$(($j +1)); 
                 done > ${scratchdir}/$dir.dat
             else
-                k=$(date --rfc --utc -d "$start_time UTC");
+                k=$(date -R --utc -d "$start_time UTC");
                 echo $k 0 > ${scratchdir}/$dir.dat
             fi
         done
     fi  
-    expires=$(date --utc --rfc -d '1 hour')
+    expires=$(date --utc -R -d '1 hour')
 
     if [ -e "$html_dir/results.png" ]; then
         position_graph="\
@@ -224,6 +223,64 @@ for ballot in $ballots; do
     </table>
 "
 
+    real_stats_table="\
+    <table width=\"90%\">
+      <tbody>
+        <tr class=\"Ignored\">
+          <th width=\"16%\">Ballots Received</th>
+          <th width=\"17%\">MIME Decoded</th>
+          <th width=\"16%\">Passed Sig Check</th> 
+          <th width=\"17%\">Passed LDAP Check</th>
+          <th width=\"16%\">Votes Tallied</th>
+	  <th>Rejects Sent</th>
+        </tr>
+        <tr class=\"Ignored\">
+          <td align=\"center\">$spool</td>
+          <td align=\"center\">$body</td>
+          <td align=\"center\">$check</td>
+          <td align=\"center\">$ldap</td>
+          <td align=\"center\">$tally</td>
+	  <td align=\"center\">$nack</td>
+        </tr>
+	<tr class=\"Ignored\">
+	  <th>Acks Created</th>
+	  <th>Acks Sent</th>
+	  <th>Acks Unsent</th>
+	  <th>Bad Ballot</th>
+	  <th colspan=\"2\">Unique Voters</th>
+	</tr>
+	<tr class=\"Ignored\">
+	  <td align=\"center\">$ack</td>
+	  <td align=\"center\">$gack</td>
+	  <td align=\"center\">$missing</td>
+	  <td align=\"center\">$bad_ballot</td>
+	  <td colspan=\"2\" align=\"center\"><a href=\"${vote_ref}_voters.txt\">$uids</a></td>
+	</tr>
+	<tr>
+	  <td  align=\"center\" colspan=\"6\">
+	     <a href=\"suppl_${vote_ref##vote_}_stats_detailed\">
+	      <img src=\"${vote_ref}_vote.png\" alt=\"Graph of the
+		rate at which the votes are received\"></a>
+	  </td>
+	</tr>
+	<tr>
+	  <td  align=\"center\" colspan=\"6\">
+	    Click on the image above to get a Zoomed in version.<br> A
+            <a href=\"${vote_ref}_tally.txt\">tally sheet</a> is
+            available.  While the voting is still open the tally is a
+            dummy one; after the vote, the final tally sheet shall be
+            put in place. Please note that for secret ballots the
+            md5sum on the dummy tally sheet is randomly generated, as
+            otherwise the dummy tally sheet would leak information
+            relating the md5 hash and the voter.  Additionally, the
+             <a href=\"${vote_ref}_results.txt\">results</a> shall be
+             updated after the polls close. 
+	  </td>
+	</tr>
+        $position_graph
+      </tbody>
+    </table>
+"
     page_top="\
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
@@ -239,7 +296,7 @@ for ballot in $ballots; do
     <meta http-equiv=\"expires\" content=\"$expires\">
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-          content=\"3600;http://master.debian.org/~srivasta/${vote}/index.html\">
+          content=\"3600;http://master.debian.org/~secretary/${vote}/index.html\">
     <link href=\"../index.css\" rel=\"stylesheet\">
     <title>${title}</title>
   </head>
@@ -275,7 +332,7 @@ for ballot in $ballots; do
 page_bottom="\
 
     <hr>
-    <address><a href=\"mailto:srivasta@debian.org\">Manoj Srivastava</a></address>
+    <address><a href=\"mailto:secretary@debian.org\">The Debian Project Secretary</a></address>
     <div  style=\"font-size: 0.6em;\">
     <SCRIPT type=\"text/javascript\">
       <!--
@@ -347,7 +404,7 @@ replot
     mv -f  vote_detailed.png vote.png ${html_dir}/
 
 
-    echo "$stats_table" > ${html_dir}/index.inc
+    echo "$real_stats_table" > ${html_dir}/index.src
     echo "$page_top"    > ${html_dir}/index.html
     if [ -e "$html_dir/quorum.inc" ]; then
         cat "$html_dir/quorum.inc" >> ${html_dir}/index.html
@@ -375,7 +432,7 @@ replot
     <meta http-equiv=\"expires\" content=\"$expires\">
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-          content=\"3600;http://master.debian.org/~srivasta/${vote}/index.html\">
+          content=\"3600;http://master.debian.org/~secretary/${vote}/index.html\">
     <link href=\"../index.css\" rel=\"stylesheet\">
     <title>${title} (Text Only)</title>
   </head>
@@ -473,7 +530,7 @@ replot
 
 
     <hr>
-    <address><a href=\"mailto:srivasta@debian.org\">Manoj Srivastava</a></address>
+    <address><a href=\"mailto:secretary@debian.org\">The Debian Project Secretary</a></address>
     <div  style=\"font-size: 0.6em;\">
     <SCRIPT type=\"text/javascript\">
       <!--
@@ -524,7 +581,7 @@ replot
     <meta http-equiv=\"Pragma\" content=\"no-cache\"> 
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-      content=\"3600;http://master.debian.org/~srivasta/${vote}/vote_detailed.html\">
+      content=\"3600;http://master.debian.org/~secretary/${vote}/vote_detailed.html\">
   </head>
 
   <body>
@@ -536,7 +593,7 @@ replot
     </p>
 
     <hr>
-    <address><a href=\"mailto:srivasta@acm.org\">Manoj Srivastava</a></address>
+    <address><a href=\"mailto:secretary@debian.org\">The Debian Project Secretary</a></address>
     <div  style=\"font-size: 0.6em;\">
 <!-- Created: Fri Mar  7 23:05:35 CST 2003 -->
 <!-- hhmts start -->
