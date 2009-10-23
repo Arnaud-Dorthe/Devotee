@@ -194,7 +194,7 @@ sub generate_ack {
     my $body = '';
     $body  = "Content-Type: text/plain\n";
     $body .= "\n";
-    $body .= "\tThis is an acknowledgement for your vote [record $msg]\n";
+    $body .= " This is an acknowledgement for your vote [record $msg]\n";
     $body .= " for the vote\n \"$title\"\n" if $title;
     $body .= " sent in on $date" if $date;
     $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
@@ -219,7 +219,7 @@ sub generate_ack {
       $body .= "and look for that checksum in the final published tally.\n";
     }
     $body .= "\n  The time now is $now_string\n";
-    $body .= "\n\tThanks for your vote.\n";
+    $body .= "\n  Thanks for your vote.\n";
 
     $ret = open(CREATED, ">$ackdir/$msg");
     if (!$ret) {
