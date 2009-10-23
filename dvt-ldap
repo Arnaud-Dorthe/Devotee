@@ -36,8 +36,7 @@ use Carp qw(carp croak);
 use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
 
-use Net::LDAP;
-#use Net::LDAPS;  # commented out stuff useful for LDAPS
+use Net::LDAPS;  # commented out stuff useful for LDAPS
 
 use vars qw($msg $ldapdir);
 
@@ -97,14 +96,14 @@ and Force.
 #$filter = "keyfingerprint=$ARGV[0]";
 #$onerror = sub {
 #  my ($mesg) = @_;
-#  print "Net::LDAP failure: " . $mesg->error . "\n";
+#  print "Net::LDAPS failure: " . $mesg->error . "\n";
 #  exit 1 if ($mesg->is_error);
 #  return $mesg;
 #}; 
 
 sub onerror {
   my ($mesg) = @_;
-  print "Net::LDAP failure: " . $mesg->error . "\n";
+  print "Net::LDAPS failure: " . $mesg->error . "\n";
   exit 1 if ($mesg->is_error);
   return $mesg;
 }
@@ -160,10 +159,12 @@ sub ldap_info {
   my $msg_preffix = $Config{'Msg_Preffix'};
   my $force       = $Config{'Force'};
   my $mask        = $Config{'File_Mask'};
-  my $ldap = new Net::LDAP($ldaphost, "debug" => 0,
-                           "version" => '3',
-                           "onerror" => \&onerror ) or 
-                             die "Failed to create LDAP Handle for $ldaphost: $@";
+  my $ldap = new Net::LDAPS($ldaphost, "debug" => 0,
+                            "version" => '3',
+                            "verify"  => 'require',
+                            "cafile" => '/etc/ssl/certs/spi-cacert-2008.pem',
+                            "onerror" => \&onerror ) or 
+                                die "Failed to create LDAP Handle for $ldaphost: $@";
   $ldap->bind ();
   # $ldap->bind (dn=>$somedn, password=>$somepw):
 
