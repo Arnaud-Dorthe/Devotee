@@ -732,7 +732,7 @@ BOTTOM
           #  This is the second node in the Edge
           my $NodeB = $Config{"Option_" . &encode_base36($j + 1)};
           # Add majority ratio
-          $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
+          $NodeB   .= "\\nMajority=$Ratio{$j}" if $Ratio{$j};
           # Print the edge information.
           print GRAPH " \"$NodeB\" -> \"$NodeA\" [ label=\"$label\", ",
             " style=\"dotted\", color=\"pink\" ];\n";
