@@ -1,2 +1,1 @@
-/org/vote.debian.org/data/%VOTE%/Ballots
-"|/org/vote.debian.org/bin/dvt-spool -c /org/vote.debian.org/data/%VOTE%/devotee.conf"
+%VOTE%: /org/vote.debian.org/data/%VOTE%/Ballots, "|/org/vote.debian.org/bin/dvt-spool -c /org/vote.debian.org/data/%VOTE%/devotee.conf"

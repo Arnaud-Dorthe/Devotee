@@ -24,8 +24,8 @@ CRON_DIR=/home/secretary/etc
 MAIL_DIR=/org/vote.debian.org/mail
 WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
-echo "setting up .forward-devotee-${VOTE} ..."
-cp -f ${WORK_DIR}/forward ${MAIL_DIR}/.forward-${VOTE}
+sed -i -e "/^$VOTE: /d" ${MAIL_DIR}/aliases
+cat ${WORK_DIR}/forward >> ${MAIL_DIR}/aliases
 
 echo "setting up cron jobs ..."
 cp -f ${WORK_DIR}/crontab.top       ${CRON_DIR}/cron.d/00-crontab-top

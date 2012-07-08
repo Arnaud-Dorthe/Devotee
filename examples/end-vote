@@ -42,7 +42,8 @@ cat ${CRON_DIR}/cron.d/* > ${CRON_DIR}/crontab
 /usr/bin/crontab ${CRON_DIR}/crontab
 
 # Stop accepting ballots
-cp -f ${MAIL_DIR}/.disabled           ${MAIL_DIR}/.forward-${VOTE}
+sed -i -e "/^$VOTE: /d" ${MAIL_DIR}/aliases
+echo $VOTE: :fail: vote is over >> ${MAIL_DIR}/aliases
 
 # Do final calculations
 FINAL_TALLY=YES

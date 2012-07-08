@@ -52,6 +52,7 @@ export PERLLIB
 
 BALLOTDIR=$basedir/ballots/
 VOTEDIR=$basedir/data/$VOTE
+MAILDIR=$basedir/mail
 
 echo "creating vote dir $VOTEDIR ..."
 mkdir -p $VOTEDIR
@@ -79,6 +80,10 @@ for i in crontab.vote forward; do
         sed -e "s/%VOTE%/$VOTE/g" $EXAMPLEDIR/$i > $i
     fi
 done
+
+echo "Set up mail handling"
+sed -i -e "/^$VOTE: /d" ${MAILDIR}/aliases
+echo $VOTE: :fail: vote not started yet >> ${MAILDIR}/aliases
 
 echo "bootstrap devotee ..."
 perl -w $PERLLIB/Devotee.pm --top_dir=. -m  --nosign_ack
