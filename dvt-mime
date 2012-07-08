@@ -181,7 +181,7 @@ sub demime_messages {
           $dvt->log_message($msg, "Could not create sig file $msg_body");
           next;
         }
-        chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body.crlf";
         print DATA $data;
         close(DATA);
         # Fix the data for the real file
