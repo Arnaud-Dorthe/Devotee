@@ -654,6 +654,19 @@ sub verify_messages {
             my $num_parts = $entity->parts;
             if ($num_parts == 2) {
               my $data = $entity->parts(0)->as_string;
+
+	      if ($data =~ m/[^\r]\n/o) {
+		# Bah. Non RFC compliant line ending. Stupid MIME::Parser
+		# Save anyway since some broken MUA's depend on this
+		# This should go away as we fix the mailers
+		my $ret = open(DATA, ">$bodydir/$msg_base.${body_suffix}.inner.crlf");
+		chmod $Config{"File_Mask"}, "$bodydir/$msg_base.${body_suffix}.inner.crlf";
+		print DATA $data;
+		close(DATA);
+		# Fix the data for the real file
+		$data =~ s/\r?\n/\r\n/g;
+	      }
+
               my $ret = open(DATA, ">$bodydir/$msg_base.${body_suffix}.inner");
               chmod $Config{"File_Mask"}, "$bodydir/$msg_base.${body_suffix}.inner";
               print DATA $data;
