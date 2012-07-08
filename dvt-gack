@@ -194,13 +194,13 @@ sub generate_ack {
     my $body = '';
     $body  = "Content-Type: text/plain\n";
     $body .= "\n";
-    $body .= " This is an acknowledgement for your vote [record $msg]\n";
-    $body .= " for the vote\n \"$title\"\n" if $title;
-    $body .= " sent in on $date" if $date;
-    $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
+    $body .= "This is an acknowledgement for your vote [record $msg]\n";
+    $body .= "for the vote: \"$title\"\n" if $title;
+    $body .= "sent in on $date" if $date;
+    $body .= ", with the subject: \"$origsubject\"\n" if $origsubject;
     $body .= "\n"                                  unless $origsubject;
-    $body .= " The message ID is $messageid.\n"       if $vote;
-    $body .= " Your vote has been recorded as follows\n" if $vote;
+    $body .= "The message ID is $messageid.\n"       if $vote;
+    $body .= "Your vote has been recorded as follows\n" if $vote;
     $body .= "-=" x 35 . "\n" if $vote;
     $body .= "$vote \n"       if $vote;
     $body .= "-=" x 35 . "\n" if $vote;
@@ -218,8 +218,8 @@ sub generate_ack {
       $body .= " % echo \"$uid $alias\" | md5sum\n";
       $body .= "and look for that checksum in the final published tally.\n";
     }
-    $body .= "\n  The time now is $now_string\n";
-    $body .= "\n  Thanks for your vote.\n";
+    $body .= "\nThe time now is $now_string\n";
+    $body .= "\nThanks for your vote.\n";
 
     $ret = open(CREATED, ">$ackdir/$msg");
     if (!$ret) {
