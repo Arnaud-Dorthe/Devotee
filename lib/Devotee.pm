@@ -455,7 +455,7 @@ Version $main::Version
                   "Encrypted_Suffix" => 'gpg',
                   "UUID"             => "",
 		  "Need_GPG"         => 1,
-		  "Need_PGP"         => 1,
+		  "Need_PGP"         => 0,
 		  "Need_LDAP"        => 1,
 		  "Sign_Ack"         => 1,
 		  "Vote_Ref"         => "vote_001",

@@ -76,7 +76,7 @@ re-sends previously sent messages.
 
 This routine pays attention to configuration parameters Top_Dir,
 Work_Dir, Tally_Dir, Ack_Dir, Sig_Dir, Temp_Dir, GPG_Keyring,
-PGP_Keyring, SEC_Keyring, PUB_Keyring, Msg_Suffix, Msg_Preffix, Force,
+SEC_Keyring, PUB_Keyring, Msg_Suffix, Msg_Preffix, Force,
 and Pass_Word.
 
 =cut
@@ -154,7 +154,6 @@ sub send_encrypted_mail {
   die "Required paramter 'SEC Ring' missing" unless $params{'SEC Ring'};
   die "Required paramter 'PUB Ring' missing" unless $params{'PUB Ring'};
   die "Required paramter 'GPG Ring' missing" unless $params{'GPG Ring'};
-  die "Required paramter 'PGP Ring' missing" unless $params{'PGP Ring'};
   die "Required paramter 'Top Dir' missing" unless $params{'Top Dir'};
 
   my $sigdir     = $params{'Sig Dir'} if defined $params{'Sig Dir'};
@@ -163,7 +162,6 @@ sub send_encrypted_mail {
   my $secring    = $params{'SEC Ring'} if defined $params{'SEC Ring'};
   my $pubring    = $params{'PUB Ring'} if defined $params{'PUB Ring'};
   my $gpgring    = $params{'GPG Ring'} if defined $params{'GPG Ring'};
-  my $pgpring    = $params{'PGP Ring'} if defined $params{'PGP Ring'};
   my $passphrase = $params{'Pass Word'} if defined $params{'Pass Word'};
   my $dvt        = $params{'Configuration'};
 
@@ -205,7 +203,6 @@ sub send_encrypted_mail {
   my @gpg_args = ("--no-default-keyring", "--always-trust",
                   "--no-permission-warning", "--no-auto-check-trustdb");
   push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
-  push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
   push (@gpg_args, "--keyring", "$pubring") if  $pubring;
   push (@gpg_args, "--secret-keyring", "$secring") if  $secring;
 
@@ -302,8 +299,6 @@ sub send_ack {
 
   my $gpgring     = $Config{'GPG_Keyring'}
     if defined $Config{'GPG_Keyring'};
-  my $pgpring     = $Config{'PGP_Keyring'}
-    if defined $Config{'PGP_Keyring'};
   my $secring     = $Config{'SEC_Keyring'}
     if defined $Config{'SEC_Keyring'};
   my $pubring     = $Config{'PUB_Keyring'}
@@ -370,7 +365,6 @@ sub send_ack {
                                   'SEC Ring'      => "$secring",
                                   'PUB Ring'      => "$pubring",
                                   'GPG Ring'      => "$gpgring",
-                                  'PGP Ring'      => "$pgpring",
                                   'Pass Word'     => "$passphrase",
                                   'Name'          => $Config{"Vote_Taker_Name"},
                                   'Email'         => $Config{"Vote_Taker_EMAIL"},

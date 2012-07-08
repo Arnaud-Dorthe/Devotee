@@ -1,3 +1,2 @@
-34   4,16  * * * (rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.gpg $DATADIR/%VOTE%/debian-keyring.gpg)
-44   4,16  * * * (rsync rsync://keyring.debian.org/keyrings/keyrings/debian-keyring.pgp $DATADIR/%VOTE%/debian-keyring.pgp)
+34   4,16  * * * (cat /org/keyring.debian.org/keyrings/debian-keyring.gpg /org/keyring.debian.org/keyrings/debian-nonupload.gpg > $DATADIR/%VOTE%/debian-keyring.gpg)
 52    4,16 * * * (cd $WORKDIR/; $BINDIR/dvt-quorum -c $DATADIR/%VOTE%/devotee.conf) >/dev/null 2>&1
