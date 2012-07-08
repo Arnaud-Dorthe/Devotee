@@ -23,11 +23,11 @@ fi
 
 
 # Locations for the vote
-CRON_DIR=/home/srivasta/etc
+CRON_DIR=/home/secretary/etc
 MAIL_DIR=/org/vote.debian.org/mail
 BIN_DIR=/org/vote.debian.org/bin
 BALLOT_DIR=/org/vote.debian.org/ballots
-HTML_DIR=/home/srivasta/public_html
+HTML_DIR=/home/secretary/public_html
 #WORK_DIR=/org/vote.debian.org/data/${VOTE}
 
 # Stop running devotee n cron
