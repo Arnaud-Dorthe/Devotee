@@ -251,7 +251,7 @@ EOF
            </p>
            <table class="vote">
              <caption class="center"><strong>The Beat Matrix</strong></caption>
-             <tr><th colspan="$max_choices" class="center">Option</th></tr>
+	     <tr><th>\&nbsp;</th><th colspan="$max_choices" class="center">Option</th></tr>
               <tr>
                    <th>\&nbsp;</th>
 POSTAMBLE
