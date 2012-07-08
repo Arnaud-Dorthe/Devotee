@@ -702,7 +702,7 @@ BOTTOM
 
     print GRAPH " \"$NodeA\" [ style=\"filled\" ";
     if ($Schwartz[$i]) {
-      print GRAPH ", color=\"powderblue\", shape=egg, fontcolor=\"Navy Blue\"";
+      print GRAPH ", color=\"powderblue\", shape=egg, fontcolor=\"NavyBlue\"";
     }
     if ($i == ($max_choices - 1)) {
       print GRAPH ", shape=diamond, fontcolor=\"Red\"";
