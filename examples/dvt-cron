@@ -100,7 +100,7 @@ for ballot in $ballots; do
         test -d $html_dir || mkdir $html_dir
         if [ -d $html_dir ]; then
             if [ "X$FINAL_TALLY" != "X" ]; then
-                for i in voters.txt tally.txt results.txt quorum.inc majority.inc results.inc results.dot quorum.txt; do
+                for i in voters.txt tally.txt results.txt quorum.src majority.src results.src results.dot quorum.txt; do
                     cp -a     $basedir/data/$vote/$i      $html_dir/${i}.new
                     chmod +r  $html_dir/${i}.new
                     mv    -f  $html_dir/${i}.new  $html_dir/${i}
