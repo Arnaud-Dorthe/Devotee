@@ -773,7 +773,7 @@ sub verify_messages {
             $text  = "There was a problem verifying the signature on the ballot.\n";
             $text .= "FAILURE:\n Reason: $failed\n\n";
             $text .= "The ballot decrypted correctly, but was not signed\n";
-            $text .= "So this means that eithe the ballot was not signed at all\n";
+            $text .= "So this means that either the ballot was not signed at all\n";
             $text .= "or that it uses RFC 1847 Encapsulation, where the ballot\n";
             $text .= "is first signed as a multipart/signature body, and then\n";
             $text .= "encrypted to form the final multipart/encrypted body --\n";

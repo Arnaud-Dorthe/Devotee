@@ -182,7 +182,7 @@ sub send_nack {
     $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
     $body .= "\n"                                  unless $origsubject;
     $body .= " The message ID is $messageid.\n"       if $err_msg;
-    $body .= " The folowing errors were reported:\n" if $err_msg;
+    $body .= " The following errors were reported:\n" if $err_msg;
     $body .= "-=" x 35 . "\n" if $err_msg;
     $body .= $err_msg         if $err_msg;
     $body .= "-=" x 35 . "\n" if $err_msg;
