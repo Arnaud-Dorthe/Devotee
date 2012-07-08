@@ -55,7 +55,7 @@ VOTEDIR=$basedir/data/$VOTE
 
 echo "creating vote dir $VOTEDIR ..."
 mkdir -p $VOTEDIR
-
+chmod 750 $VOTEDIR
 
 cd $(dirname $0)
 EXAMPLEDIR=$(pwd)
