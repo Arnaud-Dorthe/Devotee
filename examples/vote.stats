@@ -40,6 +40,7 @@ basedir=/org/vote.debian.org/
 BALLOTDIR=$basedir/ballots/
 datadir=$basedir/data/
 TEMP_DIR="$HOME/tmp"
+export LC_ALL=C
 
 ballots=$(find $BALLOTDIR -type f -name \*.blt);
 
