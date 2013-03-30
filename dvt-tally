@@ -191,21 +191,22 @@ sub create_tally {
   }
   print TALLY "\n";
   print TALLY "   ", "|" x ($#valid_options), "/\n";
-  my @count = sort keys %votes;
-  while (@count) {
-    if ($Config{Secret}) {
-      my $name = splice @count, int(rand(scalar(@count))), 1;
-      if (! defined $Moniker{ $name }) {
-        die "Could not find the moniker for $name\n";
-      }
-      my $alias = $Moniker{ $name };
+  if ($Config{Secret}) {
+    my %digests = ();
+    foreach my $uid (keys %votes) {
+      my $key = $Moniker{ $uid };
       if ($Config{Final_Tally}) {
-        print TALLY $votes{"$name"}, " \t\t", hmac_sha256_hex($name, $alias), "\n";
+	$digests{hmac_sha256_hex($uid, $key)} = $votes{"$uid"} . " \t\t";
       } else {
-        print TALLY "V: ", "-" x $#valid_options,  "1", " \t\t",
-          hmac_sha256_hex($name, "obfuscate"), "\n";
+	$digests{hmac_sha256_hex($uid, "obfuscate")} = "V: " . "-" x $#valid_options .  "1" . " \t\t";
       }
-    } else {
+    } 
+    foreach my $key (sort keys %digests) {
+      print TALLY $digests{$key}, $key, "\n";
+    }
+  } else {
+    my @count = sort keys %votes;
+    while (@count) {
       my $name = shift @count;
       if ($Config{Final_Tally}) {
         print  TALLY $votes{"$name"};
