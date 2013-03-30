@@ -215,12 +215,14 @@ sub generate_ack {
     $body .= "-=" x 35 . "\n" if -e "$logdir/${msg}.crlferr";
     $body .= "I note that this is not your first vote.\n" unless $first_vote;
     if (defined $Config{'Secret'} && $Config{'Secret'} ) {
-      $body .= "Your secret key is $alias. This is the identifier\n";
-      $body .= "that shall be used to denote your vote on the tally sheet\n";
-      $body .= "published at the end of the election, so you can check your\n";
-      $body .= "vote without giving up secrecy, like so:\n";
+      $body .= "Your secret key is: $alias.\n";
+      $body .= "This key can be used to compute the identifier that shall\n";
+      $body .= "denote your vote on the tally sheet published at the end of\n";
+      $body .= "the election.  This allows you to verify your vote has been\n";
+      $body .= "counted without giving up secrecy.  To generate the\n";
+      $body .= "identifier run the the following command or something\n";
+      $body .= "equivalent:\n";
       $body .= " % echo -n \"$uid\" | openssl dgst -sha256 -hmac $alias\n";
-      $body .= "and look for that digest in the final published tally.\n";
     }
     $body .= "\nThe time now is $now_string\n";
     $body .= "\nThanks for your vote.\n";
