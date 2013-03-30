@@ -35,7 +35,7 @@ require 5.005;
 use Carp qw(carp croak);
 use Fcntl ':flock';             # import LOCK_* constants
 use Getopt::Long;
-use Digest::MD5  qw(md5 md5_hex md5_base64);
+use Digest::SHA qw(hmac_sha256_hex);
 use DB_File;
 
 =head1 NAME
@@ -155,12 +155,12 @@ sub create_tally {
   print TALLY "   The format is:\n";
 
   if ($Config{Secret}) {
-    print TALLY "       \"V: vote \t\tMD5SUM\"\n";
-    print TALLY " You may locate the MD5SUM corresponding to a debian login ID,\n";
+    print TALLY "       \"V: vote \t\tHMAC_SHA256_HEX\"\n";
+    print TALLY " You may locate the HMAC_SHA256_HEX corresponding to a debian login ID,\n";
     print TALLY " given the associated secret token returned with the ack,\n";
-    print TALLY " by simply running md5sum. Forexample, for login ID srivasta, and\n";
+    print TALLY " by running the sha256 hmac function. For example, for login ID srivasta, and\n";
     print TALLY " the secret token 0123456789ABCDE, the following invocation works:\n";
-    print TALLY "   % echo \"srivasta 0123456789ABCDE\" | md5sum\n";
+    print TALLY "   % echo -n \"srivasta\" | openssl dgst -hmac 0123456789ABCDE -sha256\n";
   } else {
     print TALLY "       \"V: vote \tLogin\tName\"\n";
   }
@@ -200,10 +200,10 @@ sub create_tally {
       }
       my $alias = $Moniker{ $name };
       if ($Config{Final_Tally}) {
-        print TALLY $votes{"$name"}, " \t\t", md5_hex("$name $alias\n"), "\n";
+        print TALLY $votes{"$name"}, " \t\t", hmac_sha256_hex($name, $alias), "\n";
       } else {
         print TALLY "V: ", "-" x $#valid_options,  "1", " \t\t",
-          md5_hex("$name $alias obfuscate\n"), "\n";
+          hmac_sha256_hex($name, "obfuscate"), "\n";
       }
     } else {
       my $name = shift @count;
