@@ -199,11 +199,11 @@ sub generate_ack {
     $body  = "Content-Type: text/plain\n";
     $body .= "\n";
     $body .= "This is an acknowledgement for your vote [record $msg]\n";
-    $body .= "for the vote: \"$title\"\n" if $title;
-    $body .= "sent in on $date" if $date;
-    $body .= ", with the subject: \"$origsubject\"\n" if $origsubject;
+    $body .= "For the vote: \"$title\"\n" if $title;
+    $body .= "Sent on: $date\n" if $date;
+    $body .= "With subject: \"$origsubject\"\n" if $origsubject;
     $body .= "\n"                                  unless $origsubject;
-    $body .= "The message ID is $messageid.\n"       if $vote;
+    $body .= "With message ID: $messageid.\n"       if $vote;
     $body .= "Your vote has been recorded as follows\n" if $vote;
     $body .= "-=" x 35 . "\n" if $vote;
     $body .= "$vote \n"       if $vote;
