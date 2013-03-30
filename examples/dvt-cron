@@ -34,7 +34,7 @@
 
 set -e
 
-basedir=/org/vote.debian.org/
+basedir=/srv/vote.debian.org/
 test -d $basedir || exit 1
 
 export PERLLIB=$basedir/bin

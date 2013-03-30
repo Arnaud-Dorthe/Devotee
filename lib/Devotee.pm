@@ -716,16 +716,16 @@ sub validate{
 	# But, one exists in the logical place
 	$this->{Con_Ref}->{'GPG_Keyring'} = "$topdir/debian-keyring.gpg";
       }
-      elsif (-r "/org/keyring.debian.org/keyrings/debian-keyring.gpg") {
+      elsif (-r "/srv/keyring.debian.org/keyrings/debian-keyring.gpg") {
 	# Oh well, the debian origins are showing
 	$this->{Con_Ref}->{'GPG_Keyring'} = 
-	  "/org/keyring.debian.org/keyrings/debian-keyring.gpg"
+	  "/srv/keyring.debian.org/keyrings/debian-keyring.gpg"
 	}
       else {
 	# since we need the keyring, but we can't find any
 	croak "Could not find gpg ring: no default, and not found in " .
 	  "$topdir/debian-keyring.gpg or in " .
-	    "/org/keyring.debian.org/keyrings/debian-keyring.gpg";
+	    "/srv/keyring.debian.org/keyrings/debian-keyring.gpg";
       }
     }
   }
@@ -739,16 +739,16 @@ sub validate{
 	# But, one exists in the logical place
 	$this->{Con_Ref}->{'PGP_Keyring'} = "$topdir/debian-keyring.pgp";
       }
-      elsif (-r "/org/keyring.debian.org/keyrings/debian-keyring.pgp") {
+      elsif (-r "/srv/keyring.debian.org/keyrings/debian-keyring.pgp") {
 	# Oh well, the debian origins are showing
 	$this->{Con_Ref}->{'PGP_Keyring'} = 
-	  "/org/keyring.debian.org/keyrings/debian-keyring.pgp"
+	  "/srv/keyring.debian.org/keyrings/debian-keyring.pgp"
 	}
       else {
 	# since we need the keyring, but we can't find any
 	croak "Could not find pgp ring: no default, and not found in " .
 	  "$topdir/debian-keyring.pgp or in " .
-	    "/org/keyring.debian.org/keyrings/debian-keyring.pgp";
+	    "/srv/keyring.debian.org/keyrings/debian-keyring.pgp";
       }
     }
   }

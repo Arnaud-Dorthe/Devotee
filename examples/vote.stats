@@ -36,7 +36,7 @@ if [ ! -d $HOME ]; then
     exit 2;
 fi
 
-basedir=/org/vote.debian.org/
+basedir=/srv/vote.debian.org/
 BALLOTDIR=$basedir/ballots/
 datadir=$basedir/data/
 TEMP_DIR="$HOME/tmp"

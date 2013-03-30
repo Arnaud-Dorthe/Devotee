@@ -220,7 +220,7 @@ sub write_message {
 }
 
 
-use lib '/org/vote.debian.org/bin/';
+use lib '/srv/vote.debian.org/bin/';
 use Devotee;
 
 sub main {
