@@ -220,7 +220,7 @@ sub generate_ack {
       $body .= "denote your vote on the tally sheet published at the end of\n";
       $body .= "the election.  This allows you to verify your vote has been\n";
       $body .= "counted without giving up secrecy.  To generate the\n";
-      $body .= "identifier run the the following command or something\n";
+      $body .= "identifier run the following command or something\n";
       $body .= "equivalent:\n";
       $body .= " % echo -n \"$uid\" | openssl dgst -sha256 -hmac $alias\n";
     }
