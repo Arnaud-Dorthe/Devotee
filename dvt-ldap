@@ -162,7 +162,7 @@ sub ldap_info {
   my $ldap = new Net::LDAPS($ldaphost, "debug" => 0,
                             "version" => '3',
                             "verify"  => 'require',
-                            "cafile" => '/etc/ssl/certs/spi-cacert-2008.pem',
+                            "capath" => '/etc/ssl/certs/',
                             "onerror" => \&onerror ) or 
                                 die "Failed to create LDAP Handle for $ldaphost: $@";
   $ldap->bind ();

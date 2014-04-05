@@ -160,7 +160,7 @@ sub do_quorum {
     new Net::LDAPS($ldaphost,
                    "debug" => 0,
                    "verify" => 'require',
-                   "cafile" => '/etc/ssl/certs/spi-cacert-2008.pem',
+                   "capath" => '/etc/ssl/certs/',
                    "version" => '3',
                    "onerror" => \&onerror
                   )
