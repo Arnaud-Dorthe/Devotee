@@ -297,7 +297,7 @@ for ballot in $ballots; do
     <meta http-equiv=\"expires\" content=\"$expires\">
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-          content=\"3600;http://vote.debian.org/~secretary/${vote}/index.html\">
+          content=\"3600;https://vote.debian.org/~secretary/${vote}/index.html\">
     <link href=\"../index.css\" rel=\"stylesheet\">
     <title>${title}</title>
   </head>
@@ -433,7 +433,7 @@ replot
     <meta http-equiv=\"expires\" content=\"$expires\">
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-          content=\"3600;http://vote.debian.org/~secretary/${vote}/index.html\">
+          content=\"3600;https://vote.debian.org/~secretary/${vote}/index.html\">
     <link href=\"../index.css\" rel=\"stylesheet\">
     <title>${title} (Text Only)</title>
   </head>
@@ -582,7 +582,7 @@ replot
     <meta http-equiv=\"Pragma\" content=\"no-cache\"> 
     <meta http-equiv=\"Cache-Control\" content=\"3600\">
     <meta http-equiv=\"Refresh\" 
-      content=\"3600;http://vote.debian.org/~secretary/${vote}/vote_detailed.html\">
+      content=\"3600;https://vote.debian.org/~secretary/${vote}/vote_detailed.html\">
   </head>
 
   <body>
