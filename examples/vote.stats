@@ -212,9 +212,9 @@ for ballot in $ballots; do
             available.  While the voting is still open the tally is a
             dummy one; after the vote, the final tally sheet shall be
             put in place. Please note that for secret ballots the
-            md5sum on the dummy tally sheet is randomly generated, as
+            HMAC on the dummy tally sheet is randomly generated, as
             otherwise the dummy tally sheet would leak information
-            relating the md5 hash and the voter.  Additionally, the
+            relating the HMAC and the voter.  Additionally, the
              <a href=\"results.txt\">results</a> shall be
              updated after the polls close. 
 	  </td>
@@ -271,9 +271,9 @@ for ballot in $ballots; do
             available.  While the voting is still open the tally is a
             dummy one; after the vote, the final tally sheet shall be
             put in place. Please note that for secret ballots the
-            md5sum on the dummy tally sheet is randomly generated, as
+            HMAC on the dummy tally sheet is randomly generated, as
             otherwise the dummy tally sheet would leak information
-            relating the md5 hash and the voter.  Additionally, the
+            relating the HMAC and the voter.  Additionally, the
              <a href=\"${vote_ref}_results.txt\">results</a> shall be
              updated after the polls close. 
 	  </td>
@@ -502,9 +502,9 @@ replot
             available.  While the voting is still open the tally is a
             dummy one; after the vote, the final tally sheet shall be
             put in place. Please note that for secret ballots the
-            md5sum on the dummy tally sheet is randomly generated, as
+            HMAC on the dummy tally sheet is randomly generated, as
             otherwise the dummy tally sheet would leak information
-            relating the md5 hash and the voter.  Additionally, the 
+            relating the HMAC and the voter.  Additionally, the 
             <a href=\"results.txt\">results</a> shall be
              updated after the polls close. 
 	  </td>
