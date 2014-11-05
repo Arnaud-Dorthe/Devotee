@@ -95,6 +95,8 @@ sub send_mail {
     defined $params{'Subject'};
   die "Required parameter 'Body' missing" unless
     defined $params{'Body'};
+  die "Required parameter 'Reply-to' missing" unless
+    defined $params{'Reply-to'};
 
   open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
   print MAIL<<EOH;
@@ -102,6 +104,7 @@ From: secretary\@debian.org
 To: $params{'Destination'}
 Bcc: secretary\@debian.org
 Subject: $params{'Subject'}
+Reply-to: $params{'Reply-to'}
 
 Hi,
 
@@ -171,7 +174,8 @@ EOF
     }
     &send_mail('Destination' => "$from",
                'Subject'     => "$subject",
-               'Body'        => "$test_body");
+               'Body'        => "$test_body",
+               'Reply-to'    => "");
   } else {
     my @requests = split(' ', $subject);
     my $requested;
@@ -191,7 +195,8 @@ EOF
       }
       &send_mail('Destination' => "$from",
                  'Subject'     => "Ballot for $requested",
-                 'Body'        => "$test_body");
+                 'Body'        => "$test_body",
+                 'Reply-to'    => "$requested\@vote.debian.org");
 
     }
   }
