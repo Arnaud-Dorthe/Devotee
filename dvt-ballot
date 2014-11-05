@@ -93,10 +93,10 @@ sub send_mail {
     defined $params{'Destination'};
   die "Required parameter 'Subject' missing" unless
     defined $params{'Subject'};
-  die "Required parameter 'BGody' missing" unless
+  die "Required parameter 'Body' missing" unless
     defined $params{'Body'};
 
-  open(MAIL, "| /usr/sbin/sendmail -t") || die "CAnnot open sendmail";
+  open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
   print MAIL<<EOH;
 From: secretary\@debian.org
 To: $params{'Destination'}
