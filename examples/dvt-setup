@@ -44,7 +44,7 @@ if [ -z "$VOTE" ]; then
 fi
 
 
-basedir=/org/vote.debian.org/
+basedir=/srv/vote.debian.org/
 test -d $basedir || exit 1
 
 PERLLIB=$basedir/bin
@@ -63,7 +63,7 @@ EXAMPLEDIR=$(pwd)
 
 cd $VOTEDIR
 
-cat /org/keyring.debian.org/keyrings/debian-keyring.gpg /org/keyring.debian.org/keyrings/debian-nonupload.gpg > debian-keyring.gpg
+cat /srv/keyring.debian.org/keyrings/debian-keyring.gpg /srv/keyring.debian.org/keyrings/debian-nonupload.gpg > debian-keyring.gpg
 
 for i in crontab.top crontab.votestats end-vote start-vote dvt-setup vote.stats; do
     test ! -e $EXAMPLEDIR/$i || cp -f $EXAMPLEDIR/$i .
