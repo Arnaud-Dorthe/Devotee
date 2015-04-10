@@ -65,7 +65,7 @@ cd $VOTEDIR
 
 cat /srv/keyring.debian.org/keyrings/debian-keyring.gpg /srv/keyring.debian.org/keyrings/debian-nonupload.gpg > debian-keyring.gpg
 
-for i in crontab.top crontab.votestats end-vote start-vote dvt-setup vote.stats; do
+for i in crontab.top crontab.votestats end-vote start-vote dvt-setup; do
     test ! -e $EXAMPLEDIR/$i || cp -f $EXAMPLEDIR/$i .
 done
 if [ -e $EXAMPLEDIR/devotee.conf ]; then
