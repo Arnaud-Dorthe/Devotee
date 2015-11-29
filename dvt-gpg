@@ -284,12 +284,11 @@ sub verify_messages {
     my $command_args;
 
     if (-r "$bodydir/$msg_sig") {
-      $command_args = [ "--verify",
-                        "$bodydir/$msg_sig",
+      $command_args = [ "$bodydir/$msg_sig",
                         "$bodydir/$msg",
                       ];
     } else {
-      $command_args = [ "--verify", "$bodydir/$msg"];
+      $command_args = [ "$bodydir/$msg"];
     }
 
     my ( $stdout, $stderr, $status ) = ("", "", "");
@@ -404,12 +403,11 @@ sub verify_messages {
       my $command_args;
 
       if (-r "$bodydir/$msg_sig") {
-        $command_args = [ "--verify",
-                          "$bodydir/$msg_sig",
+        $command_args = [ "$bodydir/$msg_sig",
                           "$bodydir/$msg.crlf",
                         ];
       } else {
-        $command_args = [ "--verify", "$bodydir/$msg.crlf"];
+        $command_args = [ "$bodydir/$msg.crlf"];
       }
 
       my ( $stdout, $stderr, $status ) = ("", "", "");
@@ -554,6 +552,7 @@ sub verify_messages {
     my @gpg_args = ("--always-trust");
     push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
     push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
+    push (@gpg_args, "--output", "$bodydir/$msg_base.${body_suffix}");
 
     my ( $stdout, $stderr, $status ) = ("", "", "");
     ($stdout, $stderr, $status) =
@@ -562,11 +561,7 @@ sub verify_messages {
                  'PassPhrase'    => "$Config{Pass_Word}",
                  'GnuPG Args' => \@gpg_args,
                  'GnuPG Cmd'  => 'Decrypt',
-                 'Command Args' => [ "--output",
-                                     "$bodydir/$msg_base.${body_suffix}",
-                                     "--decrypt",
-                                     "$bodydir/$msg"
-                                   ]
+		 'Command Args' => [ "$bodydir/$msg" ]
                 );
     # now we read the output
     my @output = split /\n/, $stdout; # reading the output
@@ -683,8 +678,7 @@ sub verify_messages {
               push (@n_gpg_args, "--keyring", "$pgpring") if  $pgpring;
 
               my $n_command_args =
-                [ "--verify", 
-                  "$bodydir/$msg_base.${body_suffix}.insig",
+                [ "$bodydir/$msg_base.${body_suffix}.insig",
                   "$bodydir/$msg_base.${body_suffix}.inner"
                 ];
 
