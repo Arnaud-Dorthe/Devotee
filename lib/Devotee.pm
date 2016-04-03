@@ -439,7 +439,7 @@ Version $main::Version
                   "Info_Suffix"      => 'info',
                   "Ldap_Base"        => "dc=debian,dc=org",
                   "Ldap_Host"        => "db.debian.org",
-                  "Ldap_Filter"      => "(gidnumber=800)",
+                  "Ldap_Filter"      => "(supplementaryGid=Debian)",
                   "Lock_Suffix"      => 'lock',
 		  "Max_Choices"      => 0,
 		  "Msg_Preffix"      => 'msg',
