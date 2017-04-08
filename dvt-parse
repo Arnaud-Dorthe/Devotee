@@ -125,6 +125,7 @@ sub parse_messages {
     while (<MESSAGE>) {
       chomp;
       s/#.*$//o;
+      s/ / /go;
       next if /^\s*$/o;
       $have_uuid++ if m/\Q$uuid\E/;
       next unless /\[\s*([[:alnum:]])\s*\]\s*(Choice\s+([[:alnum:]]):\s*(.*))$/;
