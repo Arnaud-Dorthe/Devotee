@@ -1,0 +1,306 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# dvt-extract ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Mon Mar 25 12:26:05 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Thu Dec 22 22:20:45 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 87
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+# arch-tag: 92a06063-4f2e-4eb8-973c-b43dd943b0d8
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock';             # import LOCK_* constants
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+=head1 NAME
+
+dvt-extract - Decode and save the body of the message in a form suitable for parsing
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-extract -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine is designed to handle various forms of MIME
+encampulation, including PGP/MIME, and create a decoded body text in a
+format that can be easily checked for cryptograhic signatures.
+
+The idea here is to be forgiving of MIME errors and be able to present
+as many signed votes to the signature verifier as possible.
+
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
+re-decodes previously decoded messages.
+
+=cut
+
+
+=head2 Internal Implementation
+
+This script pays attention to the configuration options Work_Dir,
+Body_Dir, Msg_Suffix, Msg_Preffix, Force, and Temp_Dir.
+
+
+=cut
+
+
+# Recursive routine for dumping an entity.
+#
+sub dump_entity {
+  my ($dvt, $bodydir, $msg, $entity, $mask) = @_;
+  my $IO;
+
+  # Output the body:
+  my @parts = $entity->parts;
+  if (@parts) {                 # multipart...
+    my $i;
+    foreach $i (0 .. $#parts) { # dump each part...
+      dump_entity($dvt, $bodydir, $msg, $parts[$i], $mask);
+    }
+  } else {                      # single part...
+    # Get MIME type, and display accordingly...
+    my ($type, $subtype) = split('/', $entity->head->mime_type);
+    my $body = $entity->bodyhandle;
+    if ($type =~ /^(text|message)$/ ) { # text: display it...
+      if ($IO = $body->open("r")) {
+        my $ret = open(DATA, ">>$bodydir/$msg");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create output $bodydir/$msg");
+          return;
+        }
+        chmod $mask, "$bodydir/$msg";
+        print DATA $_ while (defined($_ = $IO->getline));
+        $IO->close;
+        close DATA;
+      } else {                  # d'oh!
+        $dvt->log_message($msg, "couldn't find/open part: $!");
+      }
+    } elsif ($type =~ /^application$/ && $subtype=~ /^pgp$/) {
+      my $disposition = $entity->head->mime_attr("content-disposition");
+      if ($disposition && $disposition =~ /^inline$/) {
+        if ($IO = $body->open("r")) {
+          my $ret = open(DATA, ">>$bodydir/$msg");
+          if (!$ret) {
+            $dvt->log_message($msg, "Could not create output $bodydir/$msg");
+            return;
+          }
+          chmod $mask, "$bodydir/$msg";
+          print DATA $_ while (defined($_ = $IO->getline));
+          $IO->close;
+          close DATA;
+        } else {                # d'oh!
+          $dvt->log_message($msg, "Could not create output $bodydir/$msg");
+          return;
+        }
+      }
+    } else {
+      my $eff_type = $entity->effective_type;
+      my $disposition = $entity->head->mime_attr("content-disposition");
+      #     &log_message($msg, "effective type [" . $eff_type .
+      #          "] disposition [" . $disposition . "]");
+      return;
+    }
+  }
+  1;
+}
+
+
+=head3 extract_messages
+
+This routine is where the grunt work occurs. After obtaining a lock
+on the file in the spool directory, we copy the files over to the work
+directory, and write diagnostincs for any failure.
+
+=cut
+
+sub extract_messages {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $workdir           = $Config{'Work_Dir'};
+  my $bodydir           = $Config{'Body_Dir'};
+  my $ldapdir           = $Config{"LDAP_Dir"};
+  my $nackdir     = $Config{"Nack_Dir"};
+
+  my $msg_suffix        = $Config{'Msg_Suffix'};
+  my $msg_preffix       = $Config{'Msg_Preffix'};
+  my $force             = $Config{'Force'};
+  my $tmpdir            = $Config{'Temp_Dir'};
+  my $body_suffix       = $Config{'Body_Suffix'};
+  my $encrypted_suffix  = $Config{"Encrypted_Suffix"};
+
+
+  opendir(WORK, $workdir) || die "can't opendir $workdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                          -f  "$workdir/$_" }   readdir(WORK);
+  closedir(WORK);
+
+  my $msg         ;
+  foreach $msg (sort @messages) {
+    next if (!$force && (-e "$bodydir/$msg" || -e "$nackdir/$msg"));
+    next        unless -e "$ldapdir/$msg";
+    my $msg_body       = $msg;
+    my $msg_encrypted  = $msg;
+    $msg_body          =~ s/$msg_suffix$/$body_suffix/o;
+    $msg_encrypted     =~ s/$msg_suffix$/$encrypted_suffix/o;
+
+    # If the ballot was encrypted, then we don't re-extract it (there
+    # would be no point, we would need to run gpg again. So, handle all
+    # the encrypted ballots early in extraction by simply copying over
+    # the results of the GnuPG decrypt operation.
+    if (-f "$bodydir/$msg_encrypted") {
+      my $ret = open (IN, "$bodydir/$msg_body");
+      if (!$ret) {
+        $dvt->log_message($msg,
+                     "Could not read decrypted message $bodydir/$msg_body");
+        return;
+      }
+      $ret = open(DATA, ">>$bodydir/$msg");
+      if (!$ret) {
+        $dvt->log_message($msg, "Could not create output $bodydir/$msg");
+        return;
+      }
+      chmod $Config{"File_Mask"}, "$bodydir/$msg";
+      while (<IN>) {
+        print DATA $_;
+      }
+      close(IN);
+      close(DATA);
+    }
+    else {
+      # Re xtract the message, with the qp-decoding etc turned on. 
+      my $parser = new MIME::Parser;
+      $parser->output_dir("$tmpdir");
+      $parser->output_to_core(0);
+
+      my $entity;
+      eval {$entity = $parser->parse_open("$workdir/$msg"); };
+      if ($@) {
+        $dvt->log_message($msg, "Could not parse message $msg");
+        next;
+      }
+
+      dump_entity($dvt, $bodydir, $msg, $entity, $Config{"File_Mask"});
+    }
+  }
+}
+
+
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-c> F<config file>, B<--config_file>=F<config file>
+
+Specify an alternate configuration file to read in for this run. Note:
+this script does not do any sophisticated option parsing or checking.
+
+=item B-f>, B<--force>
+
+Redo the copy even if the destination file already exists.
+
+=back
+
+=cut
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &extract_messages('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

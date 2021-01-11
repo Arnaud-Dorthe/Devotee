@@ -1,0 +1,329 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# dvt-mime.pl ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Mon Mar 25 12:26:05 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Mon Apr  4 16:10:42 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 59
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+# arch-tag: 30f2b63f-239b-4486-b26f-2a6301d1c0f8
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock';             # import LOCK_* constants
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+=head1 NAME
+
+dvt-mime - From the work dir, decode and save the body of the message
+
+=cut
+
+
+=head1 SYNOPSIS
+
+dvt-mime -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine is designed to handle various forms of MIME
+encampulation, including PGP/MIME, and create a decoded body text in a
+format that can be easily checked for cryptograhic
+signatures. Normally, this is the step after dvt-cp; and the third
+step of ballot processing.
+
+The idea here is to be forgiving of MIME errors and be able to present
+as many signed votes to the signature verifier as possible.  To
+further this goal, we save the body part of RFC 3156 PGP/MIME encoded
+ballots in two formats: one in CRLF line ending format as required by
+the RFC's, and another in simple UNIX line ending format, since some
+MUA's incorrectly calculate the signature over the raw message,
+without converting to CRLF format.
+
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
+re-decodes previously decoded messages.
+
+=cut
+
+
+=head2 Internal Implementation
+
+This script pays attention to the configuration options Work_Dir,
+Msg_Suffix, Msg_Preffix, Force, Body_Dir, Temp_Dir, Body_Suffix, and
+Sig_Suffix.
+
+=cut
+
+=head3 demime_messages
+
+This routine is where the grunt work occurs. After obtaining a lock
+on the file in the sppol directory, we copy the files over to the work
+directory, and write diagnostincs for any failure.
+
+=cut
+
+sub demime_messages {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my %Config = %{ $confref };
+  my $dvt = $params{'Configuration'};
+
+  my $workdir           = $Config{'Work_Dir'};
+  my $msg_suffix        = $Config{'Msg_Suffix'};
+  my $msg_preffix       = $Config{'Msg_Preffix'};
+  my $force             = $Config{'Force'};
+  my $bodydir           = $Config{'Body_Dir'};
+  my $tmpdir            = $Config{'Temp_Dir'};
+  my $body_suffix       = $Config{'Body_Suffix'};
+  my $sig_suffix        = $Config{"Sig_Suffix"};
+  my $encrypted_suffix  = $Config{"Encrypted_Suffix"};
+
+  # Remove the decoder that will change the input
+  MIME::Decoder->uninstall('quoted-printable');
+  MIME::Decoder->uninstall('base64');
+
+  # To disable some annoying warnings
+  MIME::Decoder::Binary->install('quoted-printable');
+  MIME::Decoder::Binary->install('base64');
+
+  opendir(WORK, $workdir) || die "can't opendir $workdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                          -f  "$workdir/$_" }   readdir(WORK);
+  closedir(WORK);
+
+  my $msg;
+  foreach $msg (sort @messages) {
+    my $msg_body       = $msg;
+    my $msg_sig        = $msg;
+    my $msg_encrypted  = $msg;
+    $msg_body          =~ s/$msg_suffix$/$body_suffix/o;
+    $msg_sig           =~ s/$msg_suffix$/$sig_suffix/o;
+    $msg_encrypted     =~ s/$msg_suffix$/$encrypted_suffix/o;
+    next if !$force    && -e "$bodydir/$msg_body";
+
+    my $parser = new MIME::Parser;
+    $parser->output_dir("$tmpdir");
+    $parser->output_to_core(0);
+
+    my $entity;
+    eval {$entity = $parser->parse_open("$workdir/$msg"); };
+    if ($@) {
+      $dvt->log_message($msg, "Could not parse message $msg");
+      next;
+    }
+
+    my $head = $entity->head;
+    # my $type = $head->get('Content-Type');
+    # my $from = $head->get('From');
+    # chomp($from);
+    # my $replyto = $head->get('Reply-To');
+    # if ($replyto) {
+    #   $from = $replyto;
+    # }
+    # my $subject = $head->get('Subject');
+
+
+    # If there's a MIM signature, try to handle it.
+    if ( ($head->mime_type =~ /multipart\/signed/i) and
+         ( $entity->parts(1)->head->mime_type =~
+           /application\/pgp-signature/i) ) {
+      my $ret = open(SIG, ">$bodydir/$msg_sig");
+      if (!$ret) {
+        $dvt->log_message($msg, "Could not create sig file $msg_sig");
+        next;
+      }
+      chmod $Config{"File_Mask"}, "$bodydir/$msg_sig";
+      $entity->parts(1)->print_body(\*SIG);
+      close(SIG);
+
+
+      my $data = $entity->parts(0)->as_string;
+      if ($data =~ m/[^\r]\n/o) {
+        # Bah. Non RFC compliant line ending. Stupid MIME::Parser
+        # Save anyway since some broken MUA's depend on this
+        # This should go away as we fix the mailers
+        $ret = open(DATA, ">$bodydir/$msg_body.crlf");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create sig file $msg_body");
+          next;
+        }
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body.crlf";
+        print DATA $data;
+        close(DATA);
+        # Fix the data for the real file
+        $data =~ s/\r?\n/\r\n/g;
+      }
+      # Save data for good MUA's
+      $ret = open(DATA, ">$bodydir/$msg_body");
+      if (!$ret) {
+        $dvt->log_message($msg, "Could not create sig file $msg_body");
+        next;
+      }
+      chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
+      print DATA $data;
+      close(DATA);
+    }                           # Try to handle any encrypted messages
+    elsif (($head->mime_type =~ /multipart\/encrypted/i) and
+         ( $entity->parts(0)->head->mime_type =~
+           /application\/pgp-encrypted/i) and 
+         ( $entity->parts(1)->head->mime_type =~
+           /application\/octet-stream/i) ) {
+      my $ret = open(MSG, ">$bodydir/$msg_encrypted");
+      if (!$ret) {
+        $dvt->log_message($msg, "Could not create file $msg_encrypted");
+        next;
+      }
+      chmod $Config{"File_Mask"}, "$bodydir/$msg_encrypted";
+      $entity->parts(1)->print_body(\*MSG);
+      close(MSG);
+    }
+    else {
+      my $msg_bodytxt = $entity->body_as_string();
+      if ($msg_bodytxt =~ m/-----BEGIN PGP SIGNED MESSAGE-----/ms) {
+        my $ret = open(DATA, ">$bodydir/$msg_body");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create file $msg_body");
+          next;
+        }
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
+        #  Massage body here. 
+        #
+        #  We eliminate every scrap of the message
+        #  outside the message body or signature so that no one may
+        #  attach a bogus ballot to a signed message by some developer.
+        #
+        $msg_bodytxt =~ s/^.*(-----BEGIN PGP SIGNED MESSAGE-----)/$1/ms;
+        $msg_bodytxt =~ s/(-----END PGP SIGNATURE\-+).*$/$1\n/ms; 
+
+        print DATA $msg_bodytxt;
+        close(DATA);
+      }
+      elsif ($msg_bodytxt =~ m/-----BEGIN PGP MESSAGE-----/ms) {
+        my $ret = open(DATA, ">$bodydir/$msg_encrypted");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create sig file $msg_encrypted");
+          next;
+        }
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_encrypted";
+        #  Massage body here. 
+        #
+        #  We eliminate every scrap of the message
+        #  outside the message body 
+        #
+        $msg_bodytxt =~ s/^.*(-----BEGIN PGP MESSAGE-----)/$1/ms;
+        $msg_bodytxt =~ s/(-----END PGP MESSAGE\-+).*$/$1\n/ms; 
+
+        print DATA $msg_bodytxt;
+        close(DATA);
+      }
+      else {
+        $dvt->log_message($msg, "No PGP signature found on Ballot");
+        my $ret = open(DATA, ">$bodydir/$msg_body");
+        if (!$ret) {
+          $dvt->log_message($msg, "Could not create file $msg_body");
+          next;
+        }
+        chmod $Config{"File_Mask"}, "$bodydir/$msg_body";
+        print DATA $msg_bodytxt;
+        close(DATA);
+         next;
+      }
+    }
+  }
+}
+
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &demime_messages('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

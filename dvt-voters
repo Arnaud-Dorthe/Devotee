@@ -1,0 +1,206 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# dvt-voters ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Wed Apr  3 21:12:43 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Mon Apr  4 13:31:57 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 48
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+#
+# arch-tag: f8c46167-dbf1-4dad-bd7b-c0effe2a5a90
+#
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock';             # import LOCK_* constants
+use Getopt::Long;
+
+#use Net::LDAPS;
+
+=head1 NAME
+
+dvt-voters - List the people who have successfully voted
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-voters -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine uses the output of dvt-ldap and tabulates the names of
+people who have succesfully voted so far.
+
+This routine looks at the messages in the tally dir to look at votes
+that have been succesfully recorded, and then looks for the unique
+user id determined by querying the LDAP database. Finally, it sorts
+and pretty prints the results into the configured destination.
+
+=cut
+
+
+=head2 Internal Implementation
+
+Pays attention to configuration options LDAP_Dir, Tally_Dir,
+Voters_File, and Msg_Suffix / Msg_Preffix.
+
+=cut
+
+sub create_list {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my %Config = %{ $confref };
+  my $dvt = $params{'Configuration'};
+
+  my $ldapdir     = $Config{'LDAP_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+  my $votersfile  = $Config{'Voters_File'};
+
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+
+
+  opendir(LDAP, $ldapdir) || die "can't open gpg output dir $ldapdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                          -e "$tallydir/$_" }  readdir(LDAP);
+  closedir(LDAP);
+
+  my %Data;
+
+  foreach my $msg (sort @messages) {
+    my $uid  ;
+    my $cn   ;
+    my $sn   ;
+    my $gecos;
+
+    my $ret = open(LDAP, "$ldapdir/$msg");
+    die "Error Reading fingerprint from $ldapdir/$msg:$!" unless $ret;
+    while (<LDAP>) {
+      chomp;
+      if    (m/^uid: (\S+)/o)       { $uid   = $1; next; }
+      elsif (m/^cn: (.*)\s*$/o )    { $cn    = $1; next; }
+      elsif (m/^sn: (.*)\s*$/o )    { $sn    = $1; next; }
+      elsif (m/^gecos: (.*)\s*$/o ) { $gecos = $1; next; }
+    }
+    close LDAP;
+
+    die "Error parsing $ldapdir/$msg" unless $uid;
+    next if defined $Data{ $uid };
+    $Data{ $uid }->{'cn'}    = $cn    if $cn;
+    $Data{ $uid }->{'sn'}    = $sn    if $sn;
+    $Data{ $uid }->{'gecos'} = $gecos if $gecos;
+    $Data{ $uid }->{'gecos'} =~ s/,.*$// if $gecos;
+  }
+
+  open (VOTERS, ">$votersfile") ||
+    die "Could not open $votersfile for writing:$!";
+
+  my $index = 0;
+  foreach my $uid (sort keys %Data) {
+    if (! ($index % 25)) {
+      print VOTERS "\f" if $index;
+      print VOTERS "-=" x 35, "\n";
+      printf VOTERS "% 5s %15s\t%s\n", "Count", " Debian UID ", "   Name ";
+      print VOTERS "-=" x 35, "\n";
+    }
+    if (defined $Data{$uid}->{'gecos'}) {
+      printf VOTERS "% 5d %15s\t%s\n", ++$index, $uid, $Data{$uid}->{'gecos'};
+    } else {
+      printf VOTERS "% 5d %15s\t%s %s\n", ++$index, $uid, 
+        defined $Data{$uid}->{'cn'} ? $Data{$uid}->{'cn'} : " ",
+          defined $Data{$uid}->{'sn'} ? $Data{$uid}->{'sn'} : " ";
+    }
+  }
+}
+
+
+use Devotee;
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+
+  $dvt->lock_vote_dir();
+  &create_list('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

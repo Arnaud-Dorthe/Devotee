@@ -1,0 +1,276 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-nack --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 17:59:36 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Tue Oct 31 11:54:56 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 53
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+#  arch-tag: d5467b69-f180-4381-af4c-6da857f0c7c0
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+=head1 NAME
+
+dvt-nack - send out rejection messages for problems encountered in processing
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-nack -c /path/to/config 
+
+
+=cut
+
+=head1 DESCRIPTION
+
+
+This routine sends out rejection letters for failed ballots, including
+the reasons for the failure. The mail is not encrypted, since the
+failure mode could be an inability to determine the GPG key for the
+voter.
+
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
+re-sends previously sent messages.
+
+
+=cut
+
+=head2 Internal Implementation
+
+This utility pays attention to the configuration options Work_Dir,
+Nack_Dir, Temp_Dir, Msg_Suffix, Msg_Preffix, and Force.
+
+=cut
+
+sub send_mail {
+  my %params = @_;
+
+  die "Required parameter 'Destination' missing" unless
+    defined $params{'Destination'};
+  die "Required parameter 'Subject' missing" unless
+    defined $params{'Subject'};
+  die "Required parameter 'Body' missing" unless
+    defined $params{'Body'};
+  die "Required parameter 'Name' missing" unless
+    defined $params{'Name'};
+  die "Required parameter 'Email' missing" unless
+    defined $params{'Email'};
+
+  open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
+  # open(MAIL, ">>Nacks")                 || die "Cannot open sendmail";
+  print MAIL <<EOH;
+From: $params{'Email'}
+To: $params{'Destination'}
+Reply-To: $params{'Email'}
+Bcc: $params{'Email'}
+Subject: $params{'Subject'}
+
+Hi,
+
+$params{'Body'}
+
+-- 
+$params{'Name'} $params{'Email'} 
+
+EOH
+  ;
+  close(MAIL);
+
+}
+
+
+sub send_nack {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $workdir     = $Config{'Work_Dir'};
+  my $nackdir     = $Config{'Nack_Dir'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $force       = $Config{'Force'};
+  my $title       = $Config{'Title'} || '';
+  my $vname       = $Config{'Vote_Name'} || '';
+
+
+  opendir(NACK, $nackdir) || die "can't opendir $nackdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                          -f  "$workdir/$_" }   readdir(NACK);
+  closedir(NACK);
+
+  foreach my $msg (sort @messages) {
+    my $msg_base = $msg;
+    $msg_base =~ s/\.$msg_suffix$//o;
+    next if !$force && -e "$nackdir/$msg_base.sent";
+
+    my $ret = open(ERR, "$nackdir/$msg");
+    if (!$ret) {
+      &log_message($msg, "Error reading errors from $nackdir/$msg:$!");
+      next;
+    }
+    undef $/;
+    my $err_msg = <ERR>;
+    $/ = "\n";
+    my $parser = new MIME::Parser;
+    $parser->output_dir("$tmpdir");
+    $parser->output_to_core(0);
+    my $entity;
+    eval {$entity = $parser->parse_open("$workdir/$msg"); };
+    if ($@) {
+      &log_message($msg, "Could not parse message $msg");
+      next;
+    }
+    my $head        = $entity->head;
+    my $from        = $head->get('From');
+    my $replyto     = $head->get('Reply-To');
+    my $date        = $head->get('Date');
+    my $origsubject = $head->get('Subject');
+    my $messageid   = $head->get('Message-ID');
+    chomp($from)          if $from;
+    chomp($date)          if $date;
+    chomp($origsubject)   if $origsubject;
+    chomp($replyto)       if $replyto;
+    chomp($messageid)     if $messageid;
+    if ($replyto) {
+      $from = $replyto;
+    }
+    my $subject = "Error report for your vote";
+
+    my $body = '';
+    $body  = "\tThis is an error report about your vote [record $msg]\n";
+    $body .= " for the vote\n \"$title\"\n" if $title;
+    $body .= " sent in on $date" if $date;
+    $body .= ", with the subject\n \"$origsubject\"\n" if $origsubject;
+    $body .= "\n"                                  unless $origsubject;
+    $body .= " The message ID is $messageid.\n"       if $err_msg;
+    $body .= " The message base is $msg_base.\n"      if $msg_base;
+    $body .= " The following errors were reported:\n" if $err_msg;
+    $body .= "-=" x 35 . "\n" if $err_msg;
+    $body .= $err_msg         if $err_msg;
+    $body .= "-=" x 35 . "\n" if $err_msg;
+    $body .= "\tIf you have already voted again, please ignore this.\n";
+    $body .= "\n You can always get a new ballot by mailing \n" if $vname;
+    $body .= " ballot\@vote.debian.org with the subject \"$vname\"\n" if $vname;
+
+    my $now_string  = gmtime;
+    $body .= "\n  The time now is $now_string\n";
+    $body .= "\n\tThanks for your participation.\n";
+
+    &send_mail('Destination' => "$from",
+               'Subject'     => "$subject",
+               'Body'        => "$body",
+               'Name'        => $Config{"Vote_Taker_Name"},
+               'Email'       => $Config{"Vote_Taker_EMAIL"}
+              );
+    $ret = open(SENT, ">>$nackdir/$msg_base.sent");
+    if (!$ret) {
+      &log_message($msg, "Error logging mesage $nackdir/$msg_base.sent:$!");
+      next;
+    }
+    chmod $Config{"File_Mask"}, "$nackdir/$msg_base.sent";
+    print SENT "Sent NACK to $from at $now_string\n";
+    close SENT;
+  }
+
+}
+
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &send_nack('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

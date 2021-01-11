@@ -1,0 +1,298 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Cperl -*- 
+# dvt-quorum --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Thu Mar 13 18:07:30 2003
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sun Mar 20 11:42:47 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 120
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+#  arch-tag: e6b204d0-1508-4f1a-b63e-8b311cc86428
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+
+
+# 
+#gpg --fast-list-mode --no-options --no-default-keyring \
+#    --keyring ./debian-keyring.pgp --keyring ./debian-keyring.gpg \
+#    --fingerprint --with-colons | grep ^fpr | cut -d: -f10 > ~/allkeys
+#ldapsearch -LLLxP2  -h db.debian.org -b dc=debian,dc=org '(gidnumber=800)' uid keyfingerprint > ldapids
+#ldapsearch -LLLxP2  -h db.debian.org -b dc=debian,dc=org  uid keyfingerprint 
+#ldapsearch -LLLxP2  -h db.debian.org -b dc=debian,dc=org '(objectclass=debiandeveloper)' uid 
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+
+use IO::Handle;
+use GnuPG::Interface;
+use DB_File;
+
+use Net::LDAPS;
+
+=head1 NAME
+
+dvt-quorum - Determine the quorum for the vote
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-quorum -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This utility calculates the current Quorum requirements for a Debian
+Project General Resolution vote, and is fairly Debian specific. 
+
+Not only does this calculate the quorum, it also generates a list of
+developers (and their key fingerprints) who were eligible to vote.
+Also recorded are any missing keys; that is, keys whose fingerprints
+live in the keyring but not in the LDAP database.
+
+=cut
+
+=head2 Internal Implementation
+
+It starts by looking at all the fingerprints for all the keys in the
+keyrings specified, and caching them. Then, it contacts the LDAP
+server, using the configured details, and gets the uids and
+fingerprints registered with LDAP that match the filter (the default
+filter filters on the basis of the Debian develkopers group in LDAP).
+
+Then, it records the UID's associated with fingerprints that are
+present both in the keyring, as well as belong to a Debian developer
+in LDAP, taking into account some developers have multiple keys.
+
+=cut
+
+=head3 Configuration Options
+
+This routine pays attention to the configuration options Top_Dir,
+Ldap_Host, Ldap_Base, Ldap_Filter, GPG_Keyring, PGP_Keyring,
+SEC_Keyring, PUB_Keyring, Quorum_File, Quorum_Error, and
+Quorum_Details.
+
+=cut
+
+sub onerror {
+  my ($mesg) = @_;
+  print "Net::LDAPS failure: " . $mesg->error . "\n";
+  exit 1 if ($mesg->is_error);
+  return $mesg;
+}
+
+sub do_quorum {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $topdir      = $Config{'Top_Dir'};
+  my $ldaphost    = $Config{"Ldap_Host"};
+  my $base        = $Config{"Ldap_Base"};
+  my $filter      = $Config{"Ldap_Filter"};
+
+  my $gpgring     = $Config{'GPG_Keyring'}
+    if defined $Config{'GPG_Keyring'};
+  my $pgpring     = $Config{'PGP_Keyring'}
+    if defined $Config{'PGP_Keyring'};
+  my $secring     = $Config{'SEC_Keyring'}
+    if defined $Config{'SEC_Keyring'};
+  my $pubring     = $Config{'PUB_Keyring'}
+    if defined $Config{'PUB_Keyring'};
+
+  my $quorum_file = $Config{"Quorum_File"};
+  my $quorum_error= $Config{"Quorum_Error"};
+  my $quorum_details = $Config{"Quorum_Details"};
+
+  my $gnupg = GnuPG::Interface->new();
+
+  my @gpg_args = ("--no-default-keyring", "--always-trust",
+                  "--no-permission-warning", "--no-auto-check-trustdb");
+  push (@gpg_args, "--keyring", "$gpgring") if  $gpgring;
+  push (@gpg_args, "--keyring", "$pgpring") if  $pgpring;
+
+  $gnupg->options->hash_init( 'no_options' => 1,
+                              'armor'   => 1,
+                              'homedir' => "$topdir",
+                              'meta_interactive' => 0,
+                              'rfc1991' => 1,
+                              'extra_args' => [ @gpg_args ]
+                            );
+  my %seen_print  = ();
+  my %ldap_prints = ();
+  my %uids        = ();
+  
+  my @keys = $gnupg->get_public_keys();
+  foreach my $key (@keys) {
+    my $hex_id = $key->hex_id();
+    my $fingerprint = $key->fingerprint->as_hex_string();
+
+    $seen_print{$fingerprint} = $hex_id;
+    $uids{$fingerprint} = $key->user_ids->[0]->as_string;;
+  }
+
+  my $ldap =
+    new Net::LDAPS($ldaphost,
+                   "debug" => 0,
+                   "verify" => 'require',
+                   "capath" => '/etc/ssl/ca-debian/',
+                   "version" => '3',
+                   "onerror" => \&onerror
+                  )
+      or die "Failed to create LDAPS Handle for $ldaphost: $@";
+
+  $ldap->bind ();
+  my @attributes = ('keyfingerprint');
+  my $mesg = $ldap->search ("base" => "$base", "filter" => "$filter",
+                            "attrs" => \@attributes);
+  $mesg->code && die $mesg->error;
+
+  foreach my $entry ($mesg->entries) {
+    my $dn = $entry->dn ( );
+    #my $uid = join '', $entry->get_value('uid');
+    $dn =~ m/uid=(\w+),/o;
+    my $uid = $1;
+    next unless $uid;
+    my @fingerprints = $entry->get_value('keyfingerprint');
+    foreach my $keyfingerprint (@fingerprints) {
+      $ldap_prints{$keyfingerprint} = $uid;
+    }
+  }
+
+  $ldap->unbind ();
+
+  open(ERROR, ">$quorum_error") ||
+    die "Could not open $quorum_error:$!";
+  my %found = ();
+  foreach my $candidates (sort keys %seen_print) {
+    if ($ldap_prints{$candidates}) {
+      if (defined $found{$ldap_prints{$candidates}}) {
+        $found{$ldap_prints{$candidates}} .= "%$candidates";
+      } else {
+        $found{$ldap_prints{$candidates}} = "$candidates";
+      }
+    }
+    print ERROR "fingerprint $candidates of $uids{$candidates} not found\n"
+      unless $ldap_prints{$candidates};
+  }
+  close ERROR;
+  
+  my $count = keys %found;
+
+  open(DETAILS, ">$quorum_details") ||
+    die "Could not open $quorum_details:$!";
+
+  my $index;
+  my $i = 25;
+  foreach my $found_name (sort keys %found) {
+    if ($i >= 24) {
+      print DETAILS "\f" if $i;
+      print DETAILS "-=" x 35, "\n";
+      printf DETAILS "% 5s % 15s\t\t%s\n", "Count", "Debian UID",
+        " Key Fingerprint(s)";
+      print DETAILS "-=" x 35, "\n";
+      $i = 0;
+    }
+    my $subline = 0;    
+    printf DETAILS "% 5d % 15s\t", ++$index,   $found_name;
+    foreach my $item (split(/%/, $found{$found_name})) {
+      print DETAILS "\t$item\n" unless $subline;
+      print DETAILS " " x 21, "\t\t$item\n" if $subline;
+      $i++; $subline++;
+    }
+  }
+
+  close DETAILS;
+  open(QUORUM, ">$quorum_file") ||  die "Could not open $quorum_file:$!";
+
+  print QUORUM " Current Developer Count = $count\n";
+  print QUORUM " Q ( sqrt(#devel) / 2 ) = ",   sqrt($count)/2, "\n";
+  print QUORUM " K min(5, Q )           = ", 
+    (5 < sqrt($count)/2) ? 5 : sqrt($count)/2, "\n";
+  print QUORUM " Quorum  (3 x Q )       = ", 3*sqrt($count)/2, "\n";
+  close QUORUM;
+}
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  &do_quorum('Configuration' => $dvt);
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

@@ -1,0 +1,23 @@
+		arch-tag: 8210d8bd-e650-449e-9640-5be40e8037ad
+COPYING
+LICENSE
+MANIFEST
+Makefile.PL
+README
+dvt-ack
+dvt-ballot
+dvt-cp
+dvt-cron
+dvt-extract
+dvt-gack
+dvt-gpg
+dvt-ldap
+dvt-mime
+dvt-nack
+dvt-parse
+dvt-quorum
+dvt-rslt
+dvt-spool
+dvt-tally
+dvt-voters
+lib/Devotee.pm

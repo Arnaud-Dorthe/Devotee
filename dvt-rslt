@@ -1,0 +1,845 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Cperl -*- 
+# dvt-rslt --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Thu Oct 16 12:08:43 2003
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sat Mar 10 09:42:54 2007
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 203
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# arch-tag: 1a48504a-0668-4790-aa72-d4359a3c41e2
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+use Math::BigInt ':constant';
+use Math::BigFloat;
+
+=head1 NAME
+
+dvt-rslt - Given a tally sheet, calculate the Condorcet winner
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-rslt -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+Produce the results, taking into consideration the tally, quorum
+requirements, and the per option majority requirements, if any.
+This routine is the heart of the voting system. It takes into account
+quorum requirements (reading the output file produced by dvt-quorum),
+and also the configured majority requirements, if any.
+
+It reads the tally sheet produced by dvt-tally, and creates the
+initial beat matrix; and the pairwise defeat list, and finally the
+schwartz set. If there are defeats between the members of the schwartz
+set, it drops the weakest defeat and repeats, until there is a winner.
+
+It puts the results in the configured output file.
+
+=cut
+
+=head2 Internal Implementation
+
+=head3 winner
+
+This is the workhorse routine. 
+This routine pays attention to the configuration variables
+Quorum_File, Tally_File, Max_Choices, and Results.
+
+=cut
+
+
+sub decode_base36 {
+    my ($t, $i)  = 0;
+    foreach(split //, reverse uc shift) {
+        $_ = ord($_) - ord('A') + 10 unless /\d/; 
+        $t += $_ * (36 ** $i++);
+    }
+    return $t;
+}
+
+#for (1..9,A..Z){
+#    print "$_\t[", &decode_base36($_), "]\n";
+#}
+
+sub encode_base36 {
+  my $n = shift;
+  my $p = shift || 0;
+
+  croak __PACKAGE__ ."::encode_base36 -- non-nunmeric value: '$n'"
+    unless $n =~/^\d+$/;
+  croak __PACKAGE__ ."::encode_base36 -- invalid padding length: '$p'"
+    unless $p =~/^\d+$/;
+  my $s="";
+  return(0) if $n == 0;
+  while ( $n ) {
+    my $v = $n % 36;
+    if($v <= 9) {
+      $s .= $v;
+    } else {
+      $s .= chr(ord('A') - 10 + $v); 
+    }
+    $n = int $n / 36;
+  }
+  return "0" x ($p - length($s)) . reverse($s);
+}
+
+#for (1..35){
+#    print "$_\t[", &encode_base36($_), "]\n";
+#}
+
+sub winner {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $quorum_file = $Config{"Quorum_File"};
+  my $tallyfile   = $Config{'Tally_File'};
+  my $html_rslt   = $Config{'HTML_Result'};
+  my $html_qurm   = $Config{'HTML_Quorum'};
+  my $html_mjrt   = $Config{'HTML_Majority'};
+  my $results     = $Config{'Results'};
+  my $graph       = $Config{'Graph'};
+  my $vote_ref    = $Config{'Vote_Ref'};
+
+  # my $max_choices = $Config{'Max_Choices'};
+
+  # Assumption: There are no gaps in the choices listed in the options
+  # file; which means simple range checks suffice.
+  my @valid_options =
+      grep {m/^Option_[[:alnum:]]$/ && $Config{$_}; } sort keys %Config;
+  my $max_choices  = $#valid_options + 1;
+
+  # The constitution defines the maximum value of K to be 5
+  my $K = Math::BigFloat->new(5.0);
+
+  # FIXME: this really should be optional
+  open(QUORUM, "$quorum_file") ||  die "Could not open $quorum_file:$!";
+  while (<QUORUM>) {
+    next unless m/\s*Quorum[^=]+=\s*(\S+)/;
+    $K = Math::BigFloat->new("$1");
+  }
+
+  #   1. Given two options A and B, V(A,B) is the number of voters who
+  #      prefer option A over option B.
+  my @Beat_Matrix = ();
+  for my $row (0..$max_choices) {
+    for my $col (0..$max_choices) {
+      $Beat_Matrix[$row][$col] = Math::BigFloat->bzero();
+    }
+  }
+
+  # OK. Start creating an output file.
+  open (RESULTS, ">$results") || die "Could not open $results:$!";
+  chmod $Config{"File_Mask"}, "$results";
+  open (RSLT_OUT, ">$html_rslt") || die "Could not open $html_rslt:$!";
+  open (QURM_OUT, ">$html_qurm") || die "Could not open $html_qurm:$!";
+  open (MJRT_OUT, ">$html_mjrt") || die "Could not open $html_mjrt:$!";
+  chmod $Config{"File_Mask"}, "$html_rslt";
+  chmod $Config{"File_Mask"}, "$html_qurm";
+  chmod $Config{"File_Mask"}, "$html_mjrt";
+
+  my $now_string = gmtime;
+  print RESULTS "Starting results calculation at $now_string\n\n";
+
+  # This is where we get our input data from
+  open(TALLY, "$tallyfile") ||  die "Could not open $tallyfile:$!";
+  while (<TALLY>) {
+    chomp;
+    next unless m/^V:\s+(\S+)\s+(\S+)/;
+    my $vote = $1;
+    my $voter = $2;
+
+    # my @rank = unpack "a" x $max_choices, $vote;
+    my @rank = ();
+    foreach my $rank (split //, uc $vote) {
+      if ($rank eq '-') {
+        push(@rank,$rank);
+      }
+      else {
+        push(@rank,decode_base36($rank));
+      }
+    }
+    foreach my $i (0..($max_choices - 1)) {
+      foreach my $j (($i + 1)..($max_choices - 1)) {
+        if ($rank[$i] eq '-' && $rank[$j] eq '-') {
+          next;                 # Both unranked
+        } elsif ($rank[$i] eq '-' && $rank[$j] ne '-') {
+          $Beat_Matrix[$j][$i]++;
+        } elsif ($rank[$i] ne '-' && $rank[$j] eq '-') {
+          $Beat_Matrix[$i][$j]++;
+        } elsif ($rank[$i] < $rank[$j]) {
+          $Beat_Matrix[$i][$j]++;
+        } elsif ($rank[$i] > $rank[$j]) {
+          $Beat_Matrix[$j][$i]++;
+        } else {
+          next;                 # Equally ranked
+        }
+      }
+    }
+  }
+  print RSLT_OUT <<PREAMBLE;
+           <p class="center">
+             <a style="margin-left: auto; margin-right: auto;" href="${vote_ref}_results.dot">
+               <img src="${vote_ref}_results.png" alt="Graphical rendering of the results">
+               </a>
+           </p>
+             <p>
+               In the graph above, any pink colored nodes imply that
+               the option did not pass majority, the Blue is the
+               winner. The Octagon is used for the options that did
+               not beat the default.  
+           </p>
+           <ul>
+PREAMBLE
+
+  for my $opt (0..($max_choices - 1)) {
+    print RESULTS "Option ", &encode_base36($opt + 1), " \"", 
+      $Config{"Option_" . &encode_base36($opt + 1)},
+      "\"\n";
+    print RSLT_OUT "<li>Option ", &encode_base36($opt + 1), " \"", 
+      $Config{"Option_" . &encode_base36($opt + 1)}, "\"</li>\n";
+  }
+  print RESULTS <<EOF;
+
+In the following table, tally[row x][col y] represents the votes that
+option x received over option y.
+
+EOF
+  ;
+  print RSLT_OUT <<POSTAMBLE;
+           </ul>
+            <p>
+               In the following table, tally[row x][col y] represents
+               the votes that option x received over option y. A 
+               <a href="http://en.wikipedia.org/wiki/Schwartz_method">more
+                 detailed explanation of the beat matrix</a> may help in
+               understanding the table. For understanding the Condorcet method, the
+               <a href="http://en.wikipedia.org/wiki/Condorcet_method">Wikipedia
+                 entry</a> is fairly informative.
+           </p>
+           <table class="vote">
+             <caption class="center"><strong>The Beat Matrix</strong></caption>
+	     <tr><th>\&nbsp;</th><th colspan="$max_choices" class="center">Option</th></tr>
+              <tr>
+                   <th>\&nbsp;</th>
+POSTAMBLE
+  ;
+
+  print RESULTS " " x18, "Option\n";
+  print RESULTS " " x10;
+  for my $col (0..($max_choices - 1)) {
+    printf RESULTS " % 4s ", &encode_base36($col + 1);
+    printf RSLT_OUT "                   <th> % 4s </th>\n", 
+      &encode_base36($col + 1);
+  }
+
+  print RESULTS "\n";
+  print RESULTS " " x10, "  === " x $max_choices, "\n";
+
+  print RSLT_OUT "              </tr>\n";
+
+  for my $row (0..($max_choices - 1)) {
+    printf RESULTS "Option %s  ", &encode_base36($row + 1);
+    printf RSLT_OUT "                 <tr>\n";
+    printf RSLT_OUT "                   <th>Option %s  </th>\n",
+      &encode_base36($row + 1);
+    for my $col (0..($max_choices - 1)) {
+      if ($row == $col) {
+        printf RSLT_OUT "                   <td>\&nbsp;</td>\n";
+        printf RESULTS "      ", $Beat_Matrix[$row][$col];
+      } else {
+        printf RSLT_OUT "                   <td> % 4d </td>\n", $Beat_Matrix[$row][$col];
+        printf RESULTS " % 4d ", $Beat_Matrix[$row][$col];
+      }
+    }
+    printf RSLT_OUT "                 </tr>\n";
+    print RESULTS "\n";
+  }
+  print RESULTS "\n\n";
+  print RSLT_OUT "               </table>\n";
+  print RSLT_OUT "              <p>\n";
+  print RSLT_OUT <<EOEXP;
+
+Looking at row 2, column 1, $Config{Option_2}<br/>
+received $Beat_Matrix[1][0] votes over $Config{Option_1}<br/>
+<br/>
+Looking at row 1, column 2, $Config{Option_1}<br/>
+received $Beat_Matrix[0][1] votes over $Config{Option_2}.<br/>
+EOEXP
+
+  print RESULTS <<EOM;
+
+Looking at row 2, column 1, $Config{Option_2}
+received $Beat_Matrix[1][0] votes over $Config{Option_1}
+
+Looking at row 1, column 2, $Config{Option_1}
+received $Beat_Matrix[0][1] votes over $Config{Option_2}.
+
+EOM
+  ;
+  
+  my %Drop = ();
+
+  print QURM_OUT "              <h3>Quorum</h3>\n";
+  print QURM_OUT "              <ul>\n";
+  foreach my $i (0..($max_choices - 2)) {
+    if ($K->bcmp($Beat_Matrix[$i][$max_choices - 1]) > 0) {
+      $Drop{$i}++;
+      print QURM_OUT "                <li>Dropping Option", 
+        &encode_base36($i + 1), " \"", 
+          $Config{"Option_" . &encode_base36($i + 1)}, 
+            "\" because of Quorum</li>\n";
+      print RESULTS "Dropping Option", &encode_base36($i + 1), 
+        " \"", $Config{"Option_" . &encode_base36($i + 1)}, 
+          "\" because of Quorum\n";
+    } else {
+      print QURM_OUT "                <li>Option", &encode_base36($i + 1), 
+        " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] \&gt; $K</li>\n";
+      print RESULTS "Option ", &encode_base36($i + 1), 
+        " Reached quorum: $Beat_Matrix[$i][$max_choices - 1] > $K\n";
+    }
+  }
+  print QURM_OUT "              </ul>\n";
+
+  print RESULTS "\n\n";
+
+  # Record Majority
+  my %Ratio = ();
+
+
+  #   2. An option A defeats the default option D by a majority ratio N,
+  #   if V(A,D) is strictly greater than N * V(D,A).
+  #   3. If a supermajority of S:1 is required for A, its majority ratio
+  #   is S; otherwise, its majority ratio is 1.
+  #  Any (non-default) option which does not defeat the default option
+  #  by its required majority ratio is dropped from consideration.
+  print MJRT_OUT "              <h3>Majority</h3>\n";
+  print MJRT_OUT "              <ul>\n";
+  foreach my $i (0..($max_choices - 2)) {
+    next unless $Beat_Matrix[$max_choices - 1][$i];
+    next if $Drop{$i};
+
+    my $ratio = 1.0 * $Beat_Matrix[$i][$max_choices - 1] /
+      $Beat_Matrix[$max_choices - 1][$i];
+    $Ratio{$i} = sprintf("%.2f", $ratio);
+    if ($ratio < $Config{"Majority_" . &encode_base36($i + 1)}) {
+      # If the next line is commented out, we get a more verbose set of results
+      $Drop{$i}++;
+      print MJRT_OUT "                <li>Dropping Option", 
+        &encode_base36($i + 1), " because of Majority. ";
+      printf MJRT_OUT " %6.3f (%d/%d) \&lt;= %d</li>\n",
+        $ratio, $Beat_Matrix[$i][$max_choices - 1],
+          $Beat_Matrix[$max_choices - 1][$i],
+            $Config{"Majority_" . &encode_base36($i + 1)};
+
+      print RESULTS "Dropping Option ", &encode_base36($i + 1),
+        " because of Majority. ($ratio)";
+      printf RESULTS " %6.3f (%d/%d) < %d\n",
+        $ratio, $Beat_Matrix[$i][$max_choices - 1],
+          $Beat_Matrix[$max_choices - 1][$i],
+            $Config{"Majority_" . &encode_base36($i + 1)};
+    } else {
+      print MJRT_OUT "                <li>Option", &encode_base36($i + 1), 
+        " passes Majority.\n";
+      printf MJRT_OUT " %6.3f (%d/%d) \&gt;= %d</li>\n",
+        $ratio, $Beat_Matrix[$i][$max_choices - 1],
+          $Beat_Matrix[$max_choices - 1][$i],
+            $Config{"Majority_" . &encode_base36($i + 1)};
+
+
+      print RESULTS "Option ", &encode_base36($i + 1), " passes Majority.";
+      print RESULTS "             ";
+      printf RESULTS " %6.3f (%d/%d) >= %d\n",
+        $ratio, $Beat_Matrix[$i][$max_choices - 1],
+          $Beat_Matrix[$max_choices - 1][$i],
+            $Config{"Majority_" . &encode_base36($i + 1)};
+    }
+  }
+  print MJRT_OUT "              </ul>\n";
+  print RESULTS "\n\n";
+
+  my $done = 0;
+  my %Defeats;
+  # Initialize the Defeats matrix
+  print RSLT_OUT "              <h3>Pair-wise defeats</h3>\n";
+  print RSLT_OUT "              <ul>\n";
+  foreach my $i (0..($max_choices - 1)) {
+    next if $Drop{$i};
+    foreach my $j (($i + 1)..($max_choices - 1)) {
+      next if $Drop{$j};
+      if ($Beat_Matrix[$i][$j] > $Beat_Matrix[$j][$i]) {
+        # i defeats j
+        $Defeats{$i}{$j}{for}     = $Beat_Matrix[$i][$j];
+        $Defeats{$i}{$j}{against} = $Beat_Matrix[$j][$i];
+
+        print RSLT_OUT "                <li>Option ", &encode_base36($i + 1),
+          " defeats Option ", &encode_base36($j + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n",
+                    $Beat_Matrix[$i][$j],  $Beat_Matrix[$j][$i], 
+                    $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
+
+        print RESULTS "  Option ", &encode_base36($i + 1), " defeats Option ",
+          &encode_base36($j + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.\n", 
+                    $Beat_Matrix[$i][$j],  $Beat_Matrix[$j][$i], 
+                    $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i]);
+      } elsif ($Beat_Matrix[$i][$j] < $Beat_Matrix[$j][$i]) {
+        # j defeats i
+        $Defeats{$j}{$i}{for}     = $Beat_Matrix[$j][$i];
+        $Defeats{$j}{$i}{against} = $Beat_Matrix[$i][$j];
+
+        print RSLT_OUT "                <li>Option ", &encode_base36($j + 1),
+          " defeats Option ", &encode_base36($i + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.</li>\n",
+                    $Beat_Matrix[$j][$i],  $Beat_Matrix[$i][$j], 
+                    $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
+
+
+        print RESULTS "  Option ", &encode_base36($j + 1), " defeats Option ",
+          &encode_base36($i + 1),
+            sprintf(" by (% 4d - % 4d) = %4d votes.\n",
+                    $Beat_Matrix[$j][$i],  $Beat_Matrix[$i][$j], 
+                    $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j]);
+      }
+    }
+  }
+  print RSLT_OUT "              </ul>\n";
+  print RESULTS "\n\n";
+  my %BeatPath;
+  my @Schwartz;
+  # Ok, here is what we are here for.
+  while (1) {
+
+    # From the list of [undropped] pairwise defeats, we generate a set of
+    # transitive defeats.
+
+    # Initialize the Beatpath
+    undef %BeatPath;
+    foreach my $i (0..($max_choices - 1)) {
+      next if $Drop{$i};
+      foreach my $j (0..($max_choices - 1)) {
+        next if $Drop{$j};
+        $BeatPath{$i}{$j}{for}     = $Defeats{$i}{$j}{for};
+        $BeatPath{$i}{$j}{against} = $Defeats{$i}{$j}{against};
+      }
+    }
+
+    #   1. An option A transitively defeats an option C if A defeats C or
+    #      if there is some other option B where A defeats B AND B
+    #      transitively defeats C.
+    while (!$done) {
+      $done = 1;
+      foreach my $i (0..($max_choices - 1)) {
+        next if $Drop{$i};
+        foreach my $j (0..($max_choices - 1)) {
+          next if $Drop{$j};
+          next if $i == $j;
+          foreach my $k (0..($max_choices - 1)) {
+            next if $Drop{$k};
+            next if $i == $k;
+            next if $k == $j;
+            if (!$BeatPath{$i}{$j}{for}) {
+              if ($BeatPath{$i}{$k}{for} && $BeatPath{$k}{$j}{for} ) {
+                if ($BeatPath{$i}{$k}{for} == $BeatPath{$k}{$j}{for}) {
+                  $BeatPath{$i}{$j}{for} = ($BeatPath{$i}{$k}{against} > 
+                                            $BeatPath{$k}{$j}{against}) ?
+                                              $BeatPath{$i}{$k}{for}:$BeatPath{$k}{$j}{for};
+                  $BeatPath{$i}{$j}{against} = ($BeatPath{$i}{$k}{against} > 
+                                                $BeatPath{$k}{$j}{against}) ?
+                                                  $BeatPath{$i}{$k}{against} :
+                                                    $BeatPath{$k}{$j}{against};
+                } else {
+                  $BeatPath{$i}{$j}{for} = ($BeatPath{$i}{$k}{for} < 
+                                            $BeatPath{$k}{$j}{for}) ?
+                                              $BeatPath{$i}{$k}{for} : 
+                                                $BeatPath{$k}{$j}{for};
+                  $BeatPath{$i}{$j}{against} = ($BeatPath{$i}{$k}{for} < 
+                                                $BeatPath{$k}{$j}{for}) ?
+                                                  $BeatPath{$i}{$k}{against} :
+                                                    $BeatPath{$k}{$j}{against};
+                }
+                $done = 0;
+              }
+            }
+          }
+        }
+      }
+    }
+
+
+    # We construct the Schwartz set from the set of transitive defeats.
+    foreach my $i (0..($max_choices - 1)) {
+      if ($Drop{$i}) {
+        $Schwartz[$i] = 0;
+      } else {
+        $Schwartz[$i] = 1;
+      }
+    }
+
+    foreach my $i (0..($max_choices - 1)) {
+      foreach my $j (0..($max_choices - 1)) {
+        next if $i == $j;
+        # An option A is in the Schwartz set if for all options B, either
+        # A transitively defeats B, or B does not transitively defeat A
+        # Here, we throw out any option $i that does not meet the above
+        # criteria.
+        if (! ($BeatPath{$i}{$j}{for} || ! $BeatPath{$j}{$i}{for})) {
+          $Schwartz[$i] = 0;
+        }
+      }
+    }
+    print RSLT_OUT "              <h3>The Schwartz Set contains</h3>\n";
+    print RSLT_OUT "              <ul>\n";
+    print RESULTS "The Schwartz Set contains:\n";
+    foreach my $i (0 ..$#Schwartz) {
+      next unless $Schwartz[$i];
+      print RSLT_OUT "                <li>Option ", &encode_base36($i + 1), 
+        " \"", $Config{"Option_" . &encode_base36($i + 1)}, "\"</li>\n";
+      print RESULTS "\t Option ", &encode_base36($i + 1), " \"", 
+        $Config{"Option_" . &encode_base36($i + 1)}, "\"\n";
+    }
+    print RSLT_OUT "              </ul>\n";
+    print RESULTS "\n\n";
+
+    # If there are defeats between options in the Schwartz set, we drop
+    # the weakest such defeats from the list of pairwise defeats, and
+    # return to step 5.
+
+    #  1. A defeat (A,X) is weaker than a defeat (B,Y) if V(A,X) is
+    #     less than V(B,Y). Also, (A,X) is weaker than (B,Y) if V(A,X) is
+    #     equal to V(B,Y) and V(X,A) is greater than V(Y,B).
+
+    #  2. A weakest defeat is a defeat that has no other defeat weaker
+    #  than it. There may be more than one such defeat.
+
+    # Check to see if there is anything in the Schwartz set that has no
+    # defeats.
+    my %Weakest;
+    my $weak_count = 0;
+    foreach my $i (0 ..$#Schwartz) {
+      next unless $Schwartz[$i];
+      foreach my $j (0..$#Schwartz) {
+        next unless $Schwartz[$j];
+        next if $i == $j;
+        if (defined $Defeats{$i}{$j}{'for'}) {
+          if (! $weak_count) {
+            $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{for};
+            $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{against};
+            $Weakest{$weak_count}{'Winner'}  = $i;
+            $Weakest{$weak_count}{'Loser'}   = $j;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} > $Defeats{$i}{$j}{for}) {
+            undef %Weakest;
+            $weak_count = 0;
+            $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{for};
+            $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{against};
+            $Weakest{$weak_count}{'Winner'}  = $i;
+            $Weakest{$weak_count}{'Loser'}   = $j;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} == $Defeats{$i}{$j}{'for'}) {
+            if ($Weakest{0}{'against'} < $Defeats{$i}{$j}{against}) {
+              undef %Weakest;
+              $weak_count = 0;
+              $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{for};
+              $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{against};
+              $Weakest{$weak_count}{'Winner'}  = $i;
+              $Weakest{$weak_count}{'Loser'}   = $j;
+              $weak_count++;
+            } else {
+              $Weakest{$weak_count}{'for'}     = $Defeats{$i}{$j}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$i}{$j}{'against'};
+              $Weakest{$weak_count}{'Winner'}  = $i;
+              $Weakest{$weak_count}{'Loser'}   = $j;
+              $weak_count++;
+            }
+          }
+        }
+        if (defined $Defeats{$j}{$i}{'for'}) {
+          if (! $weak_count) {
+            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+            $Weakest{$weak_count}{'Winner'}  = $j;
+            $Weakest{$weak_count}{'Loser'}   = $i;
+            $weak_count++;
+          } elsif ($Weakest{0}{'for'} > $Defeats{$j}{$i}{'for'}) {
+            undef %Weakest;
+            $weak_count = 0;
+            $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+            $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+            $Weakest{$weak_count}{'Winner'}  = $j;
+            $Weakest{$weak_count}{'Loser'}   = $i;
+            $weak_count++;
+          } elsif ($Weakest{0}{'Low'} == $Defeats{$j}{$i}{'for'}) {
+            if ($Weakest{0}{'against'} < $Defeats{$j}{$i}{'against'}) {
+              undef %Weakest;
+              $weak_count = 0;
+              $Weakest{$weak_count}{'for'}    = $Defeats{$j}{$i}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+              $Weakest{$weak_count}{'Winner'} = $j;
+              $Weakest{$weak_count}{'Loser'}  = $i;
+              $weak_count++;
+            } else {
+              $Weakest{$weak_count}{'for'}     = $Defeats{$j}{$i}{'for'};
+              $Weakest{$weak_count}{'against'} = $Defeats{$j}{$i}{'against'};
+              $Weakest{$weak_count}{'Winner'}  = $j;
+              $Weakest{$weak_count}{'Loser'}   = $i;
+              $weak_count++;
+            }
+          }
+        }
+      }
+    }
+    if (! $weak_count) {
+      print RESULTS "\n", "-=" x 35, "\n";
+      print RESULTS "-=" x 35, "\n\n";
+      print RSLT_OUT "              <h3>The winners</h3>\n";
+      print RSLT_OUT "              <ul>\n";
+      print RESULTS "The winners are:\n";
+      foreach my $i (0 ..$#Schwartz) {
+        next unless $Schwartz[$i];
+        print RSLT_OUT "                <li>Option ", &encode_base36($i + 1), " \"", 
+          $Config{"Option_" . &encode_base36($i + 1)}, "\"</li>\n";
+        print RESULTS "\t Option ", &encode_base36($i + 1), " \"", 
+          $Config{"Option_" . &encode_base36($i + 1)}, "\"\n";
+      }
+      print RSLT_OUT "              </ul>\n";
+      print RESULTS "\n", "-=" x 35, "\n";
+      print RESULTS "-=" x 35, "\n\n";
+      last;
+    } else {
+      print RESULTS "Weakest Defeat(s): \n";
+      print RSLT_OUT "              <h3>Weakest Defeat(s)</h3>\n";
+      print RSLT_OUT "              <ul>\n";
+      foreach my $k (sort keys %Weakest) {
+        print RSLT_OUT "                <li>Option ", 
+          &encode_base36($Weakest{$k}{'Winner'} + 1), " beats Option ",
+          &encode_base36($Weakest{$k}{'Loser'} + 1), " by ",
+            " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
+              "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
+                "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'},
+                  " votes</li>\n";
+
+        print RESULTS "\tOption ", &encode_base36($Weakest{$k}{'Winner'} + 1),
+          " beats Option ", &encode_base36($Weakest{$k}{'Loser'} + 1), " by ",
+            " ($Beat_Matrix[$Weakest{$k}{'Winner'}][$Weakest{$k}{'Loser'}] - ",
+              "$Beat_Matrix[$Weakest{$k}{'Loser'}][$Weakest{$k}{'Winner'}])\t",
+                "= ", $Weakest{$k}{'for'} - $Weakest{$k}{'against'}, " votes\n";
+      }
+      print RSLT_OUT "              </ul>\n";
+      print RSLT_OUT "              <p>Deleting weakest defeat(s)</p>\n";
+      print RESULTS "Deleting weakest defeat(s)\n\n";
+      foreach my $k (sort keys %Weakest) {
+        delete $Defeats{$Weakest{$k}{'Winner'}}{$Weakest{$k}{'Loser'}};
+      }
+    }
+  }
+
+  print RSLT_OUT <<BOTTOM;
+              <p>
+               Debian uses the Condorcet method for voting.
+               Simplistically, plain Condorcets method
+               can be stated like so : <br/>
+               <q>Consider all possible two-way races between candidates.
+                  The Condorcet winner, if there is one, is the one
+                  candidate who can beat each other candidate in a two-way
+                  race with that candidate.</q>
+               The problem is that in complex elections, there may well
+               be a circular relationship in which A beats B, B beats C,
+               and C beats A. Most of the variations on Condorcet use
+               various means of resolving the tie. See
+               <a href="http://en.wikipedia.org/wiki/Cloneproof_Schwartz_Sequential_Dropping">Cloneproof Schwartz Sequential Dropping</a>
+               for details. Debian's variation is spelled out in the
+               <a href="\$(HOME)/devel/constitution">constitution</a>,
+               specifically,  A.6.
+              </p>
+BOTTOM
+
+  # Create the graphical results file in dot format.
+  open (GRAPH, ">$graph") || die "Could not open $graph:$!";
+  chmod $Config{"File_Mask"}, "$graph";
+  # The header. This is a directed graph.
+  print GRAPH "digraph Results {\n  ranksep=0.25;\n";
+  foreach my $i (0..($max_choices - 1)) {
+    # At this point, the Schwartz set is in place and contains all the
+    # winners (who get a different color fill)
+
+    # Print Node information.
+    my $NodeA = $Config{"Option_" . &encode_base36($i + 1)};
+    # Add majority ratio
+    $NodeA   .= "\\n$Ratio{$i}" if $Ratio{$i};
+
+    print GRAPH " \"$NodeA\" [ style=\"filled\" ";
+    if ($Schwartz[$i]) {
+      print GRAPH ", color=\"powderblue\", shape=egg, fontcolor=\"NavyBlue\"";
+    }
+    if ($i == ($max_choices - 1)) {
+      print GRAPH ", shape=diamond, fontcolor=\"Red\"";
+    }
+    if ($Drop{$i}) {
+      print GRAPH ", color=\"pink\", shape=octagon";
+    }
+    print GRAPH ", fontname=\"Helvetica\", fontsize=10  ];\n";
+
+    if ($Drop{$i}) {
+      if ($K->bcmp($Beat_Matrix[$i][$max_choices - 1]) < 0) {
+
+        # it met quorum, but still was dropped.
+        # probably since it did not meet majority
+        my $label = $Beat_Matrix[$max_choices -1][$i] - 
+          $Beat_Matrix[$i][$max_choices -1];
+        # my $win;
+        # $win = $label;
+        # "weight=", ((($win<0)?-1:1) * 1000/$win),
+        print GRAPH " \"", $Config{"Option_" . &encode_base36($max_choices)}, 
+          "\" -> \"$NodeA\" [ label=\"$label\" ];\n";
+
+        foreach my $j (keys %Drop) {
+          next if $i == $j;
+          my $label = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
+          next unless $label > 0;
+          #  This is the second node in the Edge
+          my $NodeB = $Config{"Option_" . &encode_base36($j + 1)};
+          # Add majority ratio
+          $NodeB   .= "\\nMajority=$Ratio{$j}" if $Ratio{$j};
+          # Print the edge information.
+          print GRAPH " \"$NodeB\" -> \"$NodeA\" [ label=\"$label\", ",
+            " style=\"dotted\", color=\"pink\" ];\n";
+        }
+
+
+#         # Draw all the relationships, even to the ones failing majority
+#         foreach my $j (0..($max_choices - 1)) {
+#           next if $i == $j;
+#           # Note that this is different from the options that were not dropped
+#           my $label = $Beat_Matrix[$j][$i] - $Beat_Matrix[$i][$j];
+#           next unless $label > 0;
+#           #  This is the second node in the Edge
+#           my $NodeB = $Config{"Option_" . ($j + 1)};
+#           # Add majority ratio
+#           $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
+
+#           # Print the edge information.
+#           print GRAPH " \"$NodeB\" -> \"$NodeA\" [ label=\"$label\", ",
+#             " style=\"dotted\", color=\"pink\" ];\n";
+#         }
+      }
+    }
+    foreach my $j (0..($max_choices - 1)) {
+      next if $i == $j;
+      #  The beatpath should take into account transitive wins, and
+      #  have had all the weakest links removed, if needed, to resolve
+      #  circular ties.
+      if ($BeatPath{$i}{$j}{for}) {
+        # my $win   = $BeatPath{$i}{$j}{for};
+        # $win   -= $BeatPath{$j}{$i}{against}
+        #  if defined $BeatPath{$j}{$i}{against};
+        # "weight=", (1000/$win),
+
+        # We still use the simple two way contest margins to label the
+        # edge, since anything else is likely to confuse people.
+        my $label = $Beat_Matrix[$i][$j] - $Beat_Matrix[$j][$i];
+
+        #  This is the second node in the Edge
+        my $NodeB = $Config{"Option_" . &encode_base36($j + 1)};
+        # Add majority ratio
+        $NodeB   .= "\\n$Ratio{$j}" if $Ratio{$j};
+
+        # Print the edge information.
+        print GRAPH " \"$NodeA\" -> \"$NodeB\" [ label=\"$label\" ];\n";
+      }
+    }
+  }
+  # The footer.
+  print GRAPH "}\n";
+
+}
+
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  &winner('Configuration' => $dvt);
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002, 2003, 2004, 2005  Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+__END__
+
