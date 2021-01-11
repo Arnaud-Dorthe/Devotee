@@ -1,0 +1,34 @@
+#!/bin/bash
+# Author           : Stefano Zacchiroli <zack@debian.org>
+# Created On       : Sat, 25 Jul 2009 20:47:28 +0000
+
+VOTE=$(basename $(pwd))
+BASEDIR=/home/zack/devotee
+WORK_DIR=${BASEDIR}/data/${VOTE}
+SHARE_DIR=${BASEDIR}/bin/share
+BALLOTS_DIR=${BASEDIR}/ballots
+
+CONF=${WORK_DIR}/devotee.conf
+BALLOT=${BALLOTS_DIR}/${VOTE}.blt
+
+conf () {
+  grep "^$1" $CONF | cut -f 3- -d' ' | sed "s/;.*//"
+}
+
+cp ${SHARE_DIR}/ballot.tpl $BALLOT
+
+sed -i \
+  -e "s/@UUID@/$(conf UUID)/g" \
+  -e "s/@POLL-NAME@/$VOTE/g" \
+  $BALLOT
+for i in `seq 1 8` ; do
+  v="$(conf Option_$i)"
+  if [ -z "$v" ] ; then
+    sed -i "/ Choice $i:/d" $BALLOT
+  else
+    sed -i "s/@CHOICE$i@/$v/" $BALLOT
+  fi
+done
+
+echo "* $BALLOT created"
+

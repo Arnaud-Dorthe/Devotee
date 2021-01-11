@@ -1,0 +1,12 @@
+#
+SHELL=/bin/bash    
+PERL=/usr/bin/perl            
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/bin/X11:/org/vote.debian.org/bin
+MAILTO="secretary@debian.org"
+WORKDIR=/org/vote.debian.org
+BINDIR=/org/vote.debian.org/bin
+TEMPDIR=tmp
+DATADIR=/org/vote.debian.org/data
+BALLOTDIR=/org/vote.debian.org/ballots
+
+#m   h dom monday dow command

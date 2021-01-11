@@ -1,0 +1,40 @@
+#!/bin/sh
+#                               -*- Mode: Sh -*- 
+# start-vote --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Fri Dec 23 11:17:09 2005
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Tue Sep 26 13:12:55 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 3
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+# arch-tag: e2f2887b-0f66-47b7-8164-dc4991d08fb4
+VOTE=$1
+
+if [ -z "$VOTE" ]; then
+  exit 1;
+fi
+
+CRON_DIR=/home/secretary/etc
+MAIL_DIR=/org/vote.debian.org/mail
+WORK_DIR=/org/vote.debian.org/data/${VOTE}
+
+sed -i -e "/^$VOTE: /d" ${MAIL_DIR}/aliases
+cat ${WORK_DIR}/forward >> ${MAIL_DIR}/aliases
+
+echo "setting up cron jobs ..."
+cp -f ${WORK_DIR}/crontab.top       ${CRON_DIR}/cron.d/00-crontab-top
+cp -f ${WORK_DIR}/crontab.vote      ${CRON_DIR}/cron.d/50-${VOTE}
+cp -f ${WORK_DIR}/crontab.votestats ${CRON_DIR}/cron.d/60-vote-stats
+cat ${CRON_DIR}/cron.d/* > ${CRON_DIR}/crontab
+/usr/bin/crontab ${CRON_DIR}/crontab
+
+echo "bootstrapping quorum computation ..."
+$BASEDIR/bin/dvt-quorum -c ${WORK_DIR}/devotee.conf
+
+echo "all done."

@@ -1,0 +1,94 @@
+#!/bin/sh
+#                               -*- Mode: Sh -*- 
+# dvt-setup --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Sat Mar 11 21:48:18 2006
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Tue Sep 26 13:26:15 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 5
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# arch-tag: c256474d-fa9f-49ff-8626-1a12226de17c
+
+
+
+# This script is a part of the Devotee package, and is 
+# Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+
+set -e
+
+export LANG=C
+
+VOTE=$1
+if [ -z "$VOTE" ]; then
+    echo >&2 No vote specified. ABorting
+    exit 2
+fi
+
+
+basedir=/srv/vote.debian.org/
+test -d $basedir || exit 1
+
+PERLLIB=$basedir/bin
+export PERLLIB
+
+BALLOTDIR=$basedir/ballots/
+VOTEDIR=$basedir/data/$VOTE
+MAILDIR=$basedir/mail
+
+echo "creating vote dir $VOTEDIR ..."
+mkdir -p $VOTEDIR
+chmod 750 $VOTEDIR
+
+cd $(dirname $0)
+EXAMPLEDIR=$(pwd)
+
+cd $VOTEDIR
+
+cat /srv/keyring.debian.org/keyrings/debian-keyring.gpg /srv/keyring.debian.org/keyrings/debian-nonupload.gpg > debian-keyring.gpg
+
+for i in crontab.top crontab.votestats end-vote start-vote dvt-setup; do
+    test ! -e $EXAMPLEDIR/$i || cp -f $EXAMPLEDIR/$i .
+done
+if [ -e $EXAMPLEDIR/devotee.conf ]; then
+    sed -e "s/%VOTE%/$VOTE/g" -e "s/%REPLACE_UUID%/$(uuidgen)/"       \
+        -e "s/%START%/$(date --date='+1 days' +'%d %b %Y') 00:00:01/" \
+        -e "s/%END%/$(date --date='+15 days' +'%d %b %Y') 00:00:01/"  \
+        $EXAMPLEDIR/devotee.conf > devotee.conf
+fi
+
+for i in crontab.vote forward; do
+    if [ -e $EXAMPLEDIR/$i ]; then
+        sed -e "s/%VOTE%/$VOTE/g" $EXAMPLEDIR/$i > $i
+    fi
+done
+
+echo "Set up mail handling"
+sed -i -e "/^$VOTE: /d" ${MAILDIR}/aliases
+echo $VOTE: :fail: vote not started yet >> ${MAILDIR}/aliases
+
+echo "bootstrap devotee ..."
+perl -w $PERLLIB/Devotee.pm --top_dir=. -m  --nosign_ack
+
+echo "all done."
+echo "* fill the data in $VOTEDIR/devotee.conf"
+echo "* cd data/$VOTE ; ./create-ballot"
+

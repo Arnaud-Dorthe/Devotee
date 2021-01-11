@@ -1,0 +1,57 @@
+#!/bin/sh
+#                               -*- Mode: Sh -*- 
+# end-vote --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.internal.golden-gryphon.com ) 
+# Created On       : Fri Dec 23 11:01:53 2005
+# Created On Node  : glaurung.internal.golden-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Tue Sep 26 13:11:40 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 9
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+# 
+
+# arch-tag: 77986266-17e2-4fe1-9000-2a7029a04e14
+
+VOTE=$1
+if [ -z "$VOTE" ]; then
+  exit 1;
+fi
+
+
+# Locations for the vote
+CRON_DIR=/home/secretary/etc
+MAIL_DIR=/org/vote.debian.org/mail
+BIN_DIR=/org/vote.debian.org/bin
+BALLOT_DIR=/org/vote.debian.org/ballots
+HTML_DIR=/home/secretary/public_html
+#WORK_DIR=/org/vote.debian.org/data/${VOTE}
+
+# Stop running devotee n cron
+rm -f ${CRON_DIR}/cron.d/50-${VOTE}
+
+ballots=$(find ${BALLOT_DIR} -type f -name \*.blt)
+if [ -z "$ballots" ]; then 
+    rm -f ${CRON_DIR}/cron.d/60-vote-stats;
+fi
+
+cat ${CRON_DIR}/cron.d/* > ${CRON_DIR}/crontab
+/usr/bin/crontab ${CRON_DIR}/crontab
+
+# Stop accepting ballots
+sed -i -e "/^$VOTE: /d" ${MAIL_DIR}/aliases
+echo $VOTE: :fail: vote is over >> ${MAIL_DIR}/aliases
+
+# Do final calculations
+FINAL_TALLY=YES
+export FINAL_TALLY
+${BIN_DIR}/dvt-cron ${VOTE} 
+${BIN_DIR}/vote.stats
+
+# Disable the ballot
+mv -f ${BALLOT_DIR}/${VOTE}.blt      ${BALLOT_DIR}/${VOTE}.old
+
+chmod -R +r ${HTML_DIR}

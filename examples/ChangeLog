@@ -1,0 +1,33 @@
+2007-04-03  Manoj Srivastava  <srivasta@debian.org>
+
+	* forward: srivasta@debian.org--lenny/devotee--devel--0.1--base-0
+		  No longer forward ballots to secretary@debian.org, since
+		  that is publicly archived.
+
+2007-03-09  Manoj Srivastava  <srivasta@debian.org>
+
+	* vote.stats (ballots):
+		  srivasta@debian.org--etch/devotee--devel--0.1--versionfix-1
+		  reset uid count for each vote, so a new vote does not
+		  carry over the umber of voters fro the previous vote.
+
+2006-10-31  Manoj Srivastava  <srivasta@debian.org>
+
+	* devotee.conf (Vote_Ref):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-34
+		  Added Vote_Name and Vote_Ref for use in ack/nack
+
+2006-10-30  Manoj Srivastava  <srivasta@debian.org>
+
+	* vote.stats (ballots):
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-33
+		  Determine what the vote number is.
+
+	* crontab.votestats:
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-33
+		  This is good enough for calling dvt-cron
+
+	* crontab.vote:
+		  srivasta@debian.org--etch/devotee--devel--0.1--patch-33
+		  dvt-cron does not need to be called on a per vote basis.
+
