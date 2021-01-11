@@ -1,0 +1,10 @@
+To setup a new poll:
+
+$ cd ~/devotee
+$ setup/dvt-setup poll-name 
+... fill in data in ~/devotee/data/poll-name/devotee.conf ...
+$ cd ~/devotee/data/poll-name
+$ ./create-ballot
+... review and complete ~/devotee/ballots/poll-name.blt ...
+$ ./start-vote poll-name
+
