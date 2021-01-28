@@ -1,6 +1,6 @@
 # DEVOTEE -- The DEbian VOTe EnginE
 
-First of all, we would like to thank our sponsors for making this project possible. See the list of our sponsors.
+First of all, we would like to thank our generous sponsors for making this project possible. See the list of our [sponsors](doc/Sponsors.md).
 
 	This directory contains the code for the mechanism used by the
  Debian project to conduct email based votes. This system has been
