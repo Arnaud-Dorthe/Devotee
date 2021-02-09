@@ -1,0 +1,304 @@
+#!/usr/bin/perl
+#                              -*- Mode: Perl -*- 
+# dvt-ldap --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 00:51:07 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Tue Jul  8 16:09:49 2008
+# Last Machine Used: anzu.internal.golden-gryphon.com
+# Update Count     : 55
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+#  arch-tag: 5d9d4a22-f9c4-4026-9c00-e53608b02c2a
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock';             # import LOCK_* constants
+use Getopt::Long;
+
+use Net::LDAPS;  # commented out stuff useful for LDAPS
+
+use vars qw($msg $ldapdir);
+
+=head1 NAME
+
+dvt-ldap - query the LDAP server to determine the unique ID for voters
+
+=cut
+
+=head1 VERSION
+
+Version 0.01
+
+=cut
+
+our $VERSION = '0.01';
+
+
+=head1 SYNOPSIS
+
+dvt-ldap -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine is designed to query the debian ldap server to determine
+the unique uid for every debian developer.  This is the fifth phase in
+ballot processing.
+
+The unique uid that is determined from LDAP, using the key fingerprint
+as a filter, shall be used as primary index, allowing for developers
+with multiple keys to still be able to replace their vote. The LDAP
+check also acts as an additional check; there are keys in the keyring
+that belong to administrative roles in Debian (Security Key, for
+instance), which should not have voting privileges.
+
+It is important to add a filter to limit the matches from LDAP, if,
+like Debians LDAP, the server contains entries for people other than
+those enfranchised.
+
+Additionally, this script attempts to be idempotent. It is also
+incremental, unless a force option is given, in which case it
+re-queries the LDAP DB.
+
+
+=cut
+
+=head2 Internal Implementation
+
+This routine pays attention to configuration parameters LDAP_Dir,
+Nack_Dir, Ldap_Host, Ldap_Base, Check_Dir, Msg_Suffix, Msg_Preffix,
+and Force.
+
+=cut
+
+#$filter = "keyfingerprint=$ARGV[0]";
+#$onerror = sub {
+#  my ($mesg) = @_;
+#  print "Net::LDAPS failure: " . $mesg->error . "\n";
+#  exit 1 if ($mesg->is_error);
+#  return $mesg;
+#}; 
+
+sub onerror {
+  my ($mesg) = @_;
+  print "Net::LDAPS failure: " . $mesg->error . "\n";
+  exit 1 if ($mesg->is_error);
+  return $mesg;
+}
+
+sub ldap_callback {
+  my %params  = @_;
+  my $mesg    = $params{'Request'};
+  my $entry   = $params{'Entry'};
+  my $msg     = $params{'Message'};
+  my $ldapdir = $params{'LDAP_Dir'};
+  my $nackdir = $params{'Nack_Dir'};
+  my $dvt     = $params{'Configuration'};
+  $entry or return;
+
+  #my $output = $entry->get_value('uid');
+  #my $uid = join '', $entry->get_value('uid');
+  my $dn  = $entry->dn();
+  $dn  =~ m/uid=(\w+),/o;
+  my $uid = $1;
+  my $cn     = join '', $entry->get_value('cn');
+  my $sn     = join '', $entry->get_value('sn');
+  my $gecos  = join '', $entry->get_value('gecos');
+  die "No UID found." unless $uid;
+
+  open (LDAP, ">$ldapdir/$msg") || 
+    die "Could not open output file $ldapdir/$msg:$!";
+
+
+  chmod $params{"File_Mask"}, "$ldapdir/$msg";
+  print LDAP "uid: $uid\n";
+  print LDAP "cn: $cn\n"       if $cn;
+  print LDAP "sn: $sn\n"       if $sn;
+  print LDAP "gecos: $gecos\n" if $gecos;
+  close LDAP;
+}
+;
+
+sub ldap_info {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $msg;
+  my $ldapdir     = $Config{"LDAP_Dir"};
+  my $nackdir     = $Config{"Nack_Dir"};
+  my $checkdir    = $Config{"Check_Dir"};
+  my $ldaphost    = $Config{"Ldap_Host"};
+  my $base        = $Config{"Ldap_Base"};
+
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $force       = $Config{'Force'};
+  my $mask        = $Config{'File_Mask'};
+  my $ldap = new Net::LDAPS($ldaphost, "debug" => 0,
+                            "version" => '3',
+                            "verify"  => 'require',
+                            "capath" => '/etc/ssl/ca-debian/',
+                            "onerror" => \&onerror ) or 
+                                die "Failed to create LDAP Handle for $ldaphost: $@";
+  $ldap->bind ();
+  # $ldap->bind (dn=>$somedn, password=>$somepw):
+
+  opendir(DATA, $checkdir) || die "can't open gpg output dir $checkdir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ }  readdir(DATA);
+  closedir(DATA);
+
+  foreach $msg (sort @messages) {
+    next if !$force && (-e "$ldapdir/$msg" || -e "$nackdir/$msg");
+    my $ret = open(PRINT, "$checkdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error Reading fingerprint from $checkdir/$msg:$!");
+      next;
+    }
+    undef $/;
+    my $print = <PRINT>;
+    $/="\n";
+    $print =~ m/(\S+)/;
+    my $filter = $1;
+    chomp($filter);
+    $filter = "(keyfingerprint=$filter)";
+    my @attributes = ('cn', 'sn' , 'gecos' );
+    eval {  $ldap->search ("base" => "$base", "filter" => "$filter",
+                           "attrs" => \@attributes,
+                           "callback" => sub {
+                             my ($mesg, $entry) = @_;
+                             &ldap_callback('Request'       => $mesg,
+                                            'Entry'         => $entry,
+                                            'Message'       => $msg,
+                                            'LDAP_Dir'      => $ldapdir,
+                                            'Nack_Dir'      => $nackdir,
+                                            'File_Mask'     => $mask,
+                                            'Configuration' => $dvt)}
+                          ); };
+    if ($@) {
+      $dvt->log_message($msg, "Error getting ldap info:$@");
+    }
+    # If searching for the key did not end up creating a record in the
+    # LDAP directory, add an NACk message, so that the voter knows
+    # that the ballot failed due to missing the LDAP check. This is due
+    # to the fac that this message could come from a defunct account with
+    # a key in the keyring, but not in LDAP.
+    if (! -e "$ldapdir/$msg") {
+      open(NACK, ">>$nackdir/$msg") ||
+        die "Could not open $nackdir/$msg:$!";
+      print NACK "There was an error retrieving information from LDAP for the\n";
+      print NACK "fingerprint $filter.\n";
+      print NACK "There is no way of knowing if this is a defunct account, so\n";
+      print NACK "I am not recording this vote.\n";
+      print NACK "\tThis ballot is being rejected, please vote again.\n\n";
+      close NACK;
+      $dvt->log_message($msg, "Error getting ldap info (no such record)");
+    }
+  }
+  $ldap->unbind ();
+}
+
+
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-c> F<config file>, B<--config_file>=F<config file>
+
+Specify an alternate configuration file to read in for this run. Note:
+this script does not do any sophisticated option parsing or checking.
+
+=item B-f>, B<--force>
+
+Redo the copy even if the destination file already exists.
+
+=back
+
+=cut
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &ldap_info('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

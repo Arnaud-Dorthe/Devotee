@@ -1,0 +1,328 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*-
+# dvt-ballot.pl ---
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com )
+# Created On       : Wed Mar 27 12:11:17 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Thu Oct 14 18:23:39 2004
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 23
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+# arch-tag: 7982a5ee-4439-4708-a006-88611bcd6e64
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+use strict;
+
+require 5.005;
+use Fcntl ':flock';             # import LOCK_* constants
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Decoder::Binary;
+
+=head1 NAME
+
+dvt-ballot - retrieve a list of current votes, or the ballot for a specific one.
+
+=cut
+
+my $topdir;
+my $logdir;
+my $ballotdir;
+
+
+my $lock_suffix = 'lock';
+my $msg_suffix  = 'raw';
+my $msg_preffix = 'msg';
+my $common_lock= 'lock';
+my $body_suffix = 'body';
+my $sig_suffix  = 'sig';
+
+my $force       = 0;
+
+=head1 SYNOPSIS
+
+dvt-ballot -c /path/to/ballots/config
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine is designed to return the list of ballots, or one
+particular ballot to the person sending the email.
+
+Unlike previous incarnations, this list does not check signatures on
+the mail, indeed, it only looks at the subject, if present.
+
+=cut
+
+=head2 Internal Implementation
+
+Unlike the other components of devotee, this script has its own simple
+configuration file (as opposed to the vote specific configuration
+other scripts look at). The configuration file is really a perl
+snippet, which should assign values into the hash %main::Config. The
+only keys that are relevant in that hash are 'Ballot Dir' and 'Tmp Dir'. 
+
+=cut
+
+sub send_mail {
+  my %params = @_;
+
+  die "Required parameter 'Destination' missing" unless
+    defined $params{'Destination'};
+  die "Required parameter 'Subject' missing" unless
+    defined $params{'Subject'};
+  die "Required parameter 'Body' missing" unless
+    defined $params{'Body'};
+  die "Required parameter 'Reply-to' missing" unless
+    defined $params{'Reply-to'};
+
+  open(MAIL, "| /usr/sbin/sendmail -t") || die "Cannot open sendmail";
+  print MAIL<<EOH;
+From: secretary\@debian.org
+To: $params{'Destination'}
+Bcc: secretary\@debian.org
+Subject: $params{'Subject'}
+Reply-to: $params{'Reply-to'}
+
+Hi,
+
+$params{'Body'}
+
+      Hope this helps,
+      Debian Project secretary (secretary\@debian.org)
+
+EOH
+  ;
+  close(MAIL);
+
+}
+
+sub send_ballot {
+  my $test_body = '';
+
+  # Remove the decoder that will change the input
+  MIME::Decoder->uninstall('quoted-printable');
+  MIME::Decoder->uninstall('base64');
+
+  # To disable some annoying warnings
+  MIME::Decoder::Binary->install('quoted-printable');
+  MIME::Decoder::Binary->install('base64');
+
+  my $parser = new MIME::Parser;
+  #$parser->output_dir("$tmpdir");
+  #$parser->output_to_core(0);
+
+  my $entity;
+  eval {$entity = $parser->parse(\*STDIN); };
+  if ($@) {
+    die "Could not parse message:$@";
+  }
+
+  if (! (($entity->effective_type =~ m!multipart/signed!) ||
+         ($entity->as_string =~ m!^-----BEGIN PGP SIGNED MESSAGE-----!m))) {
+    die "Unsigned message. Please GPG sign all requests for ballots.\n";
+  }
+  my $head = $entity->head;
+  my $type = $head->get('Content-Type');
+  my $from = $head->get('From');
+  chomp($from);
+  my $replyto = $head->get('Reply-To');
+  if ($replyto) {
+    $from = $replyto;
+  }
+  my $subject = $head->get('Subject');
+
+  if (!$subject || $subject =~ /^\s*$/) {
+    $subject = "List of active votes";
+    opendir(BALLOTS, $ballotdir) || die "can't opendir $ballotdir: $!";
+    my @ballots = grep { m/\.blt$/ &&
+                           -r  "$ballotdir/$_" }   readdir(BALLOTS);
+
+    if (@ballots) {
+      @ballots = grep { s/\.blt$// } @ballots;
+      $test_body =<<EOF;
+        The current list of active votes (these names can be used to request
+the ballots) are:
+
+EOF
+      ;
+      $test_body .= join(' ', @ballots);
+    } else {
+      $test_body ="\tThere are no current votes at this moment.\n";
+    }
+    &send_mail('Destination' => "$from",
+               'Subject'     => "$subject",
+               'Body'        => "$test_body",
+               'Reply-to'    => "");
+  } else {
+    my @requests = split(' ', $subject);
+    my $requested;
+    foreach $requested (@requests) {
+      if (-r "$ballotdir/$requested.blt") {
+        open(BALLOT, "$ballotdir/$requested.blt")  ||
+          die "can't opendir $ballotdir/$requested.blt $!";
+        undef $/;
+        $test_body = <BALLOT>;
+        $/="\n";
+        if (!$test_body) {
+          $test_body ="\tError reading ballot for $requested.\n";
+        }
+        close (BALLOT);
+      } else {
+        $test_body ="\tNo ballot found for $requested.\n";
+      }
+      &send_mail('Destination' => "$from",
+                 'Subject'     => "Ballot for $requested",
+                 'Body'        => "$test_body",
+                 'Reply-to'    => "$requested\@vote.debian.org");
+
+    }
+  }
+
+}
+
+=head3 init
+
+This routine initializes the various variables and configuration
+options used in the script. This is where we load the configuration
+file/library, optionally given as a command line parameter, or
+searched for from a built in default set.
+
+The configuration options we are interested in are:
+ C<$main::Config{'Ballot Dir'}>,
+ C<$main::Config{'Top Dir'}>
+
+=cut
+
+sub init {
+  my %params = @_;
+  my $dotdir = $ENV{HOME} || $ENV{LOGNAME} || (getpwuid($>))[7] ;
+  my $return;
+  my $config_file;
+
+  if (defined $params{'Config File'} && -r $params{'Config File'} ) {
+    $config_file = $params{'Config File'};
+  } elsif (-r "$dotdir/.devotee") {
+    $config_file = "$dotdir/.devotee";
+  } elsif (-r '/etc/devotee.conf') {
+    $config_file = '/etc/devotee.conf';
+  }
+
+
+  if ($config_file) {
+    my $ret = do "$config_file";
+    unless ($ret) {
+      die "Couldn't parse $config_file: $@" if $@;
+      die "Couldn't do $config_file: $!" unless defined $return;
+      die "Couldn't run $config_file" unless $return;
+    }
+  }
+
+  if (defined $main::Config{'Ballot Dir'} && -d $main::Config{'Ballot Dir'}) {
+    $ballotdir = $main::Config{'Ballot Dir'};
+  } elsif (-d $dotdir) {
+    $ballotdir = "$dotdir/../../ballots";
+  } else {
+    die "Could Not determine ballot dir"
+  }
+
+
+}
+
+
+=item B<-c> F<config file>, B<--config_file>=F<config file>
+
+Specify an alternate configuration file to read in for this run. Note:
+this script does not do any sophisticated option parsing or checking.
+
+=item B-f>, B<--force>
+
+Redo the copy even if the destination file already exists.
+
+=cut
+
+sub main {
+  my $opt_config = '';
+
+  GetOptions ('config_file=s' => \$opt_config);
+
+  if ($opt_config) {
+    &init('Config File' => "$opt_config");
+  } else {
+    &init;
+  }
+
+  &send_ballot();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

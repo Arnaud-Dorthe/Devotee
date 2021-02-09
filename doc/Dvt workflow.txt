@@ -1,0 +1,14 @@
+1.dvt-spool
+2.dvt-cp
+3.dvt-mime
+4.dvt-gpg
+5.dvt-ldap
+6.dvt-extract
+7.dvt-parse
+8.dvt-gack
+9.dvt-ack
+10.dvt-nack
+11.dvt-tally
+12.dvt-voters
+13.dvt-rslt
+

@@ -1,0 +1,283 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-tally --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Sat Mar 30 11:33:31 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Mon Apr  4 13:33:35 2005
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 45
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+#  arch-tag: 69a26d2b-8b63-478a-bc0b-10f474b665b5
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# 
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Fcntl ':flock';             # import LOCK_* constants
+use Getopt::Long;
+use Digest::SHA qw(hmac_sha256_hex);
+use DB_File;
+
+=head1 NAME
+
+dvt-tally - create a tally sheet from the votes cast.
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-tally -c /path/to/config 
+
+=cut
+
+=head1 DESCRIPTION
+
+This routine is designed to create a tally sheet from the votes cast.
+This routine looks at the messages in the tally dir to look at votes
+that have been succesfully recorded, and then looks for the unique
+user id determined by querying the LDAP database.  The unique uid that
+is determined from LDAP, using the key fingerprint as a filter, shall
+be used as primary index, allowing for developers with multiple keys
+to still be able to replace their vote. 
+
+The tally sheet produced depends on a couple of factors; firstly,
+whether this is the final tally or not (in the case it is not, a
+dummy tally sheet is produced). Secondly, if this is a secret ballot
+vote, the tally sheet is produced with the alias of the voter rather
+than the name; the alias having been sent in when the acknowledgement
+was generated for the first vote cast by the voter.
+
+=cut
+
+
+=head2 Internal Implementation
+
+This routine pays attention to configuration variables LDAP_Dir,
+Tally_Dir, Tally_File, Tally_Dummy, Alias_DB, Msg_Suffix, and
+Msg_Preffix.
+
+=cut
+
+sub create_tally {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $ldapdir     = $Config{'LDAP_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+  my $tallyfile   = $Config{'Tally_File'};
+  my $dummyfile   = $Config{'Tally_Dummy'};
+
+  my $aliasdb     = $Config{'Alias_DB'};
+
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+
+  opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                          -f  "$ldapdir/$_"} readdir(TALLY);
+  closedir(TALLY);
+
+  my %Moniker;
+  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, $Config{"File_Mask"},
+    $DB_HASH or die "Cannot open file $aliasdb: $!\n" ;
+
+  my %votes=();
+  my %Names=();
+
+  foreach my $msg (sort @messages) {
+    my $ret = open(VOTE, "$tallydir/$msg");
+    if (!$ret) {
+      die "Error reading vote from $tallydir/$msg:$!";
+    }
+    undef $/;
+    my $vote = <VOTE>;
+    close VOTE;
+    $/ = "\n";
+    chomp $vote;
+
+    if (-r "$ldapdir/$msg") {
+      $ret = open(LDAP, "$ldapdir/$msg");
+      if (!$ret) {
+        die "Error reading uid from $ldapdir/$msg:$!";
+      }
+    } else {
+      die "Could not read uid from  $ldapdir/$msg.\n";
+    }
+    my $uid;
+    my $cn;
+    my $sn;
+    while (<LDAP>) {
+      chomp;
+      if (m/^uid: (\S+)/o) { $uid = $1; };
+      if (m/^cn: (.*)$/o)  { $cn  = $1; };
+      if (m/^sn: (.*)$/o)  { $sn  = $1; };
+    }
+    close LDAP;
+
+    $votes{"$uid"} = $vote;
+    $Names{"$uid"} = "$cn $sn";
+  }
+
+
+  if ($Config{Final_Tally}) {
+    open (TALLY, ">$tallyfile") ||
+      die "Could not open $tallyfile for writing:$!";
+    chmod $Config{"File_Mask"}, "$tallyfile";
+  } else {
+    open (TALLY, ">$dummyfile") ||
+      die "Could not open $dummyfile for writing:$!";
+  }
+
+  print TALLY "\n\t\t       Tally Sheet for the votes cast. \n \n";
+  print TALLY "   The format is:\n";
+
+  if ($Config{Secret}) {
+    print TALLY "       \"V: vote \t\tHMAC_SHA256_HEX\"\n";
+    print TALLY " You may locate the HMAC_SHA256_HEX corresponding to a debian login ID,\n";
+    print TALLY " given the associated secret token returned with the ack,\n";
+    print TALLY " by running the sha256 hmac function. For example, for login ID srivasta, and\n";
+    print TALLY " the secret token 0123456789ABCDE, the following invocation works:\n";
+    print TALLY "   % echo -n \"srivasta\" | openssl dgst -hmac 0123456789ABCDE -sha256\n";
+  } else {
+    print TALLY "       \"V: vote \tLogin\tName\"\n";
+  }
+  print TALLY " The vote block represents the ranking given to each of the \n";
+  print TALLY " candidates by the voter. \n";
+  print TALLY " ", "-=" x 34, "\n";
+
+  if (! $Config{Final_Tally}) {
+    print TALLY "\n";
+    print TALLY " THIS IS A DUMMY TALLY SHEET.";
+    print TALLY " THE ACTUAL BALLOTS CONTENTS WERE DIFFERENT\n";
+    print TALLY "\n";
+  }
+  print TALLY " ", "-=" x 34, "\n";
+  my @valid_options = grep {m/^Option_\d+$/ && $Config{$_}; } sort keys %Config;
+
+  #   foreach my $index (1 .. ($#valid_options + 1) ) {
+  #     print TALLY "   ", " |" x ($index - 2), $index > 1 ? " / " : " ",
+  #       " Option $index", "--" x ($#valid_options + 2 - $index), "->: ",
+  #       $Config{"Option_$index"}, "\n";
+  #   }
+  #   print TALLY "   ", " |" x ($#valid_options), " /\n";
+  foreach my $index (1 .. ($#valid_options + 1) ) {
+    print TALLY "\n";
+    print TALLY "   ", "|" x ($index - 2), $index > 1 ? "/ " : " ",
+      " Option $index", "-" x ($#valid_options + 2 - $index), "->: ",
+        $Config{"Option_$index"};
+  }
+  print TALLY "\n";
+  print TALLY "   ", "|" x ($#valid_options), "/\n";
+  if ($Config{Secret}) {
+    my %digests = ();
+    foreach my $uid (keys %votes) {
+      my $key = $Moniker{ $uid };
+      if ($Config{Final_Tally}) {
+	$digests{hmac_sha256_hex($uid, $key)} = $votes{"$uid"} . " \t\t";
+      } else {
+	$digests{hmac_sha256_hex($uid, "obfuscate")} = "V: " . "-" x $#valid_options .  "1" . " \t\t";
+      }
+    } 
+    foreach my $key (sort keys %digests) {
+      print TALLY $digests{$key}, $key, "\n";
+    }
+  } else {
+    my @count = sort keys %votes;
+    while (@count) {
+      my $name = shift @count;
+      if ($Config{Final_Tally}) {
+        print  TALLY $votes{"$name"};
+        printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
+      } else {
+        print  TALLY "V: ", "-" x $#valid_options,  "1";
+        printf TALLY "\t%15s\t%s\n", $name, $Names{"$name"};
+      }
+    }
+  }
+}
+
+
+use Devotee;
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &create_tally('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+

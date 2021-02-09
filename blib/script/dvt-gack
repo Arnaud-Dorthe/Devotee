@@ -1,0 +1,303 @@
+#!/usr/bin/perl -w
+#                              -*- Mode: Perl -*- 
+# dvt-ack --- 
+# Author           : Manoj Srivastava ( srivasta@glaurung.green-gryphon.com ) 
+# Created On       : Fri Mar 29 22:06:48 2002
+# Created On Node  : glaurung.green-gryphon.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Mon Oct 30 16:51:20 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 80
+# Status           : Unknown, Use with caution!
+# HISTORY          : 
+# Description      : 
+# 
+#  arch-tag: cab32ec8-1dfa-4d69-94d7-1ed6f52e3830
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# 
+
+
+use strict;
+
+require 5.005;
+use Carp qw(carp croak);
+use Devotee;
+use Getopt::Long;
+
+use MIME::Entity;
+use MIME::Parser;
+use MIME::Decoder;
+use MIME::Tools;
+use MIME::Decoder::Binary;
+
+use IO::Handle;
+use GnuPG::Interface;
+use DB_File;
+
+use Digest::SHA qw(sha256_hex);
+
+=head1 NAME
+
+dvt-gack - generate an acknowledgement for the vote
+
+=cut
+
+=head1 SYNOPSIS
+
+dvt-gack -c /path/to/config
+
+=cut
+
+=head1 DESCRIPTION
+
+This script is responsible for generating the acknowledgement for the
+vote, after ensuring that the ballot passed GPG and LDAP checks. If
+vote is by secret ballot, it creates a secret key associated with
+the voter (since the voter is identified by the uid field of the LDAP
+data, each voter can be uniquely identified); we only have one key per
+voter, no matter how many times the voter votes. This key, along
+with the name of the voter, is passed on to hmac function and the
+resulting string is displayed on the final tally sheet.
+
+The ack also notes if this is not the first vote by the voter,
+
+=cut
+
+=head2 Internal Implementation
+
+This utility pays attention to the configuration options Work_Dir,
+Log_Dir, Tally_Dir, Ack_Dir, Temp_Dir, LDAP_Dir, Msg_Suffix,
+Msg_Preffix, Force, and Alias_DB.
+
+=cut
+
+
+sub generate_ack {
+  my %params   = @_;
+  die "Internal Error!" unless defined $params{'Configuration'};
+  my $confref = $params{'Configuration'}->get_config_ref();
+  my $dvt = $params{'Configuration'};
+  my %Config = %{ $confref };
+
+  my $workdir     = $Config{'Work_Dir'};
+  my $logdir      = $Config{'Log_Dir'};
+  my $tallydir    = $Config{'Tally_Dir'};
+  my $ackdir      = $Config{'Ack_Dir'};
+  my $tmpdir      = $Config{'Temp_Dir'};
+  my $ldapdir     = $Config{'LDAP_Dir'};
+
+
+  my $msg_suffix  = $Config{'Msg_Suffix'};
+  my $msg_preffix = $Config{'Msg_Preffix'};
+  my $force       = $Config{'Force'};
+
+  my $aliasdb     = $Config{'Alias_DB'};
+
+  my $title       = $Config{'Title'} || '';
+
+  opendir(TALLY, $tallydir) || die "can't opendir $tallydir: $!";
+  my @messages = grep { m/${msg_preffix}\d+\.${msg_suffix}$/ &&
+                          -f  "$workdir/$_" }   readdir(TALLY);
+  closedir(TALLY);
+
+  if ($force && -e $aliasdb) {
+    unlink $aliasdb;
+  }
+  my %Moniker;
+  my $moniker_ref = tie %Moniker, 'DB_File', $aliasdb, O_RDWR|O_CREAT, $Config{"File_Mask"},
+    $DB_HASH or die "Cannot open file $aliasdb: $!\n" ;
+
+  foreach my $msg (sort @messages) {
+    my $msg_base = $msg;
+    $msg_base =~ s/\.$msg_suffix$//o;
+    next if !$force && -e "$ackdir/$msg_base.sent";
+
+    my $ret = open(VOTE, "$tallydir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error reading vote from $tallydir/$msg:$!");
+      next;
+    }
+    undef $/;
+    my $vote = <VOTE>;
+    close VOTE;
+    $/ = "\n";
+    chomp $vote;
+
+    if (-r "$ldapdir/$msg") {
+      $ret = open(LDAP, "$ldapdir/$msg");
+      if (!$ret) {
+        $dvt->log_message($msg, "Error reading uid from $ldapdir/$msg:$!");
+        next;
+      }
+    } else {
+      $dvt->log_message($msg, "No uid found in $ldapdir/$msg.\n");
+      next;
+    }
+    my $uid;
+    while (<LDAP>) {
+      chomp;
+      if (m/^uid: (\S+)/o) { $uid = $1; };
+    }
+    close LDAP;
+
+    my $alias;
+    my $first_vote = 0;
+
+    if (defined $Moniker{ $uid }) {
+      $alias = $Moniker{ $uid };
+    } else {
+      $first_vote = 1;
+      open(UR, '<', '/dev/urandom') or die($!);
+      my $rbytes;
+      die if (sysread(UR, $rbytes, 32) < 32);
+      close UR;
+      $alias = sha256_hex($rbytes);
+      $Moniker{ $uid } = $alias;
+    }
+
+    my $parser = new MIME::Parser;
+    $parser->output_dir("$tmpdir");
+    $parser->output_to_core(0);
+    my $entity;
+    eval {$entity = $parser->parse_open("$workdir/$msg"); };
+    if ($@) {
+      $dvt->log_message($msg, "Could not parse message $msg");
+      next;
+    }
+    my $head        = $entity->head;
+    my $from        = $head->get('From');
+    my $replyto     = $head->get('Reply-To');
+    my $date        = $head->get('Date');
+    my $origsubject = $head->get('Subject');
+    my $messageid   = $head->get('Message-ID');
+    my $now_string  = gmtime;
+
+    chomp($from)          if $from;
+    chomp($date)          if $date;
+    chomp($origsubject)   if $origsubject;
+    chomp($replyto)       if $replyto;
+    chomp($messageid)     if $messageid;
+    if ($replyto) {
+      $from = $replyto;
+    }
+    my $subject = "Acknowledgement for your vote";
+
+    my $body = '';
+    $body  = "Content-Type: text/plain\n";
+    $body .= "\n";
+    $body .= "This is an acknowledgement for your vote [record $msg]\n";
+    $body .= "For the vote: \"$title\"\n" if $title;
+    $body .= "Sent on: $date\n" if $date;
+    $body .= "With subject: \"$origsubject\"\n" if $origsubject;
+    $body .= "\n"                                  unless $origsubject;
+    $body .= "With message ID: $messageid.\n"       if $vote;
+    $body .= "Your vote has been recorded as follows\n" if $vote;
+    $body .= "-=" x 35 . "\n" if $vote;
+    $body .= "$vote \n"       if $vote;
+    $body .= "-=" x 35 . "\n" if $vote;
+    $body .= "\nI note that your MUA does not follow the \\r\\n requirement\n"
+      if -e "$logdir/${msg}.crlferr";
+    $body .= "as per the RFCs 1521 and 3156.\n\n" 
+      if -e "$logdir/${msg}.crlferr";
+    $body .= "-=" x 35 . "\n" if -e "$logdir/${msg}.crlferr";
+    $body .= "I note that this is not your first vote.\n" unless $first_vote;
+    if (defined $Config{'Secret'} && $Config{'Secret'} ) {
+      $body .= "Your secret key is: $alias.\n";
+      $body .= "This key can be used to compute the identifier that shall\n";
+      $body .= "denote your vote on the tally sheet published at the end of\n";
+      $body .= "the election.  This allows you to verify your vote has been\n";
+      $body .= "counted without giving up secrecy.  To generate the\n";
+      $body .= "identifier run the following command or something\n";
+      $body .= "equivalent:\n";
+      $body .= " % echo -n \"$uid\" | openssl dgst -sha256 -hmac $alias\n";
+    }
+    $body .= "\nThe time now is $now_string\n";
+    $body .= "\nThanks for your vote.\n";
+
+    $ret = open(CREATED, ">$ackdir/$msg");
+    if (!$ret) {
+      $dvt->log_message($msg, "Error creating $ackdir/$msg:$!");
+      next;
+    }
+    chmod $Config{"File_Mask"}, "$ackdir/$msg";
+    print CREATED "$body\n";
+    close CREATED;
+    chmod 0440, "$ackdir/$msg";
+  }
+}
+
+
+
+sub main {
+  my $optdesc = Devotee->Optdesc();
+  GetOptions (%$optdesc);
+  my $dvt = Devotee->new(%::ConfOpts);
+  $dvt->validate(%::ConfOpts) unless 
+    defined $::ConfOpts{'Config File'} && -r $::ConfOpts{'Config File'};
+  $dvt->lock_vote_dir();
+  &generate_ack('Configuration' => $dvt);
+  $dvt->unlock_vote_dir();
+}
+
+&main;
+
+exit 0;
+
+
+=head1 CAVEATS
+
+This is very inchoate, at the moment, and needs testing.
+
+=cut
+
+=head1 BUGS
+
+None Known so far.
+
+=cut
+
+=head1 AUTHOR
+
+Manoj Srivastava <srivasta@debian.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This script is a part of the Devotee package, and is 
+
+Copyright (c) 2002 Manoj Srivastava <srivasta@debian.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
+
+
+
+1;
+
+__END__
+
